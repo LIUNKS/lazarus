@@ -1,0 +1,72 @@
+{
+  "title": "Invoice totals calculator (ES3)",
+  "sourceLanguage": "es3",
+  "entryFunction": "computeInvoiceTotal",
+  "targetStack": "TypeScript 6 (strict mode, ES2022)",
+  "numRuns": 1000,
+  "seed": 20260101,
+  "requirementsTitle": "Invoice totals calculator",
+  "criteria": [
+    "THE computeInvoiceTotal function SHALL return an object with the numeric fields subtotal, discount, tax, and total.",
+    "WHEN an item has a quantity of 0, THE computeInvoiceTotal function SHALL exclude that item from the subtotal.",
+    "WHEN the coupon is HALF, THE computeInvoiceTotal function SHALL set the discount to half of the unrounded subtotal.",
+    "WHEN the coupon is TEN, THE computeInvoiceTotal function SHALL set the discount to ten percent of the unrounded subtotal.",
+    "IF the coupon is any other value, THEN THE computeInvoiceTotal function SHALL set the discount to 0.",
+    "THE computeInvoiceTotal function SHALL compute the tax as the discounted subtotal multiplied by taxRate and SHALL round every returned amount to 2 decimal places.",
+    "THE computeInvoiceTotal function SHALL NOT read or modify any global state."
+  ],
+  "design": "# Design: Invoice totals calculator\n\nEntry function: `computeInvoiceTotal(order)`.\n\nInput: an object `{ items, taxRate, coupon }`. `items` is an array of `{ price: number, quantity: number }`, `taxRate` is a number where 0.2 means 20 percent, and `coupon` is a string.\n\nOutput: an object `{ subtotal, discount, tax, total }` whose fields are numbers rounded to two decimal places.\n\nThe function is pure and deterministic. The TypeScript version declares the input and output shapes as interfaces, replaces loose equality with strict equality, and keeps the arithmetic order unchanged.",
+  "invariants": {
+    "input": "object { items: { price: number, quantity: number }[], taxRate: number, coupon: string }",
+    "output": "object { subtotal: number, discount: number, tax: number, total: number }",
+    "list": [
+      "Every returned amount is rounded to two decimal places with Math.round(value * 100) / 100.",
+      "Items with quantity 0 never change the subtotal.",
+      "A coupon other than HALF or TEN yields a discount of 0.",
+      "Calling the function twice with the same input returns deeply equal objects.",
+      "The function never reads or writes global state."
+    ]
+  },
+  "curses": [
+    {
+      "type": "GLOBAL_POLLUTION",
+      "severity": "BLOOD_CURSE",
+      "match": "lastInvoiceRun = ",
+      "description": "Assigns the undeclared identifier lastInvoiceRun at the top level, which silently creates a mutable global variable.",
+      "strategy": "Delete the assignment. Keep any needed state inside function scope or pass it explicitly as a parameter."
+    },
+    {
+      "type": "VAR_HOISTING",
+      "severity": "HEX",
+      "match": "var item = order.items[index];",
+      "description": "The var declaration inside the loop body is hoisted to function scope, so item and lineTotal outlive each iteration.",
+      "strategy": "Declare loop-scoped values with const inside the loop body and use let only where reassignment is needed."
+    },
+    {
+      "type": "IMPLICIT_COERCION",
+      "severity": "HEX",
+      "match": "item.quantity == 0",
+      "description": "Loose equality converts its operands before comparing, so values such as the string '0' or false would also match.",
+      "strategy": "Use strict equality and type the quantity field as number so no conversion is needed."
+    },
+    {
+      "type": "IMPLICIT_COERCION",
+      "severity": "HEX",
+      "match": "order.coupon == 'HALF'",
+      "description": "Loose equality on the coupon code allows values of other types to match the string and hides invalid input.",
+      "strategy": "Use strict equality on a string-typed coupon field, or a lookup table of known coupon codes."
+    }
+  ],
+  "inputs": [
+    { "items": [], "taxRate": 0, "coupon": "" },
+    { "items": [{ "price": 10, "quantity": 1 }], "taxRate": 0.2, "coupon": "" },
+    { "items": [{ "price": 10, "quantity": 0 }, { "price": 5, "quantity": 2 }], "taxRate": 0.1, "coupon": "NONE" },
+    { "items": [{ "price": 19.99, "quantity": 3 }], "taxRate": 0.07, "coupon": "HALF" },
+    { "items": [{ "price": 100, "quantity": 2 }, { "price": 0.1, "quantity": 3 }], "taxRate": 0.21, "coupon": "TEN" },
+    { "items": [{ "price": -20, "quantity": 1 }], "taxRate": 0.2, "coupon": "" },
+    { "items": [{ "price": 0.1, "quantity": 3 }], "taxRate": 0, "coupon": "" },
+    { "items": [{ "price": 1000, "quantity": 50 }], "taxRate": 1, "coupon": "HALF" },
+    { "items": [{ "price": 1.005, "quantity": 1 }], "taxRate": 0.5, "coupon": "UNKNOWN" },
+    { "items": [{ "price": 2, "quantity": 2 }, { "price": 3, "quantity": 3 }, { "price": 4, "quantity": 4 }], "taxRate": 0.15, "coupon": "TEN" }
+  ]
+}

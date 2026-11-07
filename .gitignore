@@ -1,0 +1,36 @@
+# NOTE: the .kiro/ directory is intentionally tracked (steering, specs, hooks, settings).
+# Never add .kiro/ to this file.
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Builds (Next.js, Turborepo, Vercel)
+.next/
+out/
+build/
+dist/
+.turbo/
+.vercel/
+
+# Testing & TypeScript
+coverage/
+*.tsbuildinfo
+
+# Environment variables (never commit keys). .env.example IS tracked.
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+*.pem
