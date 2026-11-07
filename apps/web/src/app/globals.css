@@ -1,0 +1,97 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Theme tokens: the single place where the Lazarus palette is defined.
+ *   --background  #09090b  page background
+ *   --curse       #e11d48  crimson: curses and destructive actions only
+ *   --verified    #10b981  emerald: verified properties and success only
+ * The contrast test (src/lib/ui/contrast.test.ts) reads this file and checks the text pairs.
+ */
+:root {
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #111114;
+  --card-foreground: #fafafa;
+  --popover: #111114;
+  --popover-foreground: #fafafa;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #1c1c20;
+  --secondary-foreground: #fafafa;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+  --destructive: #e11d48;
+  --curse: #e11d48;
+  --curse-foreground: #ffffff;
+  --verified: #10b981;
+  --verified-foreground: #09090b;
+  --border: #2e2e33;
+  --input: #2e2e33;
+  --ring: #a1a1aa;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-curse: var(--curse);
+  --color-curse-foreground: var(--curse-foreground);
+  --color-verified: var(--verified);
+  --color-verified-foreground: var(--verified-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    background-color: var(--background);
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100dvh;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-serif tracking-tight;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

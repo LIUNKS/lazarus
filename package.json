@@ -1,0 +1,33 @@
+{
+  "name": "lazarus",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Autonomous legacy JavaScript resurrection platform.",
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=9"
+  },
+  "scripts": {
+    "build": "node scripts/workspace-task.ts build",
+    "test": "node scripts/workspace-task.ts test",
+    "lint": "node scripts/workspace-task.ts lint",
+    "db:migrate": "dotenv -e .env -- node scripts/db-migrate.ts",
+    "db:seed:generate": "node db/seed/generate-seed.ts",
+    "test:db": "node scripts/test-db.ts run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "acorn": "^8.19.0",
+    "dotenv-cli": "^11.1.0",
+    "eslint": "^10.14.0",
+    "fast-check": "^4.10.2",
+    "pg": "^8.23.1",
+    "turbo": "^2.11.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
+  }
+}

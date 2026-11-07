@@ -1,0 +1,74 @@
+{
+  "title": "Query string parser (jQuery era, ES5)",
+  "sourceLanguage": "es5-jquery",
+  "entryFunction": "parseQueryString",
+  "targetStack": "TypeScript 6 (strict mode, ES2022)",
+  "numRuns": 1000,
+  "seed": 20260102,
+  "requirementsTitle": "Query string parser",
+  "criteria": [
+    "THE parseQueryString function SHALL accept a query string with or without a leading question mark and SHALL return an object that maps decoded keys to decoded values.",
+    "WHEN the input is empty or contains only a question mark, THE parseQueryString function SHALL return an empty object.",
+    "WHEN a pair has no equals sign, THE parseQueryString function SHALL use the empty string as its value.",
+    "WHEN a key appears more than once, THE parseQueryString function SHALL return an array that holds every value in order of appearance.",
+    "WHEN a key or a value contains a plus sign, THE parseQueryString function SHALL decode it as a space before percent-decoding.",
+    "IF a percent-encoded sequence is malformed, THEN THE parseQueryString function SHALL throw a URIError.",
+    "WHERE a key is __proto__, THE parseQueryString function SHALL ignore the pair."
+  ],
+  "design": "# Design: Query string parser\n\nEntry function: `parseQueryString(query)`.\n\nInput: a string, the URL query part with or without a leading question mark.\n\nOutput: an object that maps each decoded key to a decoded string, or to an array of strings when the key repeats.\n\nThe function is pure and deterministic. The TypeScript version types the result as a record of strings or string arrays, uses `startsWith` and `Array.isArray` instead of loose comparisons, and skips the `__proto__` key explicitly.",
+  "invariants": {
+    "input": "string: a URL query string, with or without a leading question mark",
+    "output": "object mapping string keys to a string or to an array of strings",
+    "list": [
+      "Empty pairs created by consecutive ampersands are skipped.",
+      "The first occurrence of a key stores a string and later occurrences store an array of strings.",
+      "The key __proto__ never changes the prototype of the result and never appears as an own property.",
+      "A malformed percent-encoded sequence throws a URIError.",
+      "Calling the function twice with the same input returns deeply equal objects."
+    ]
+  },
+  "curses": [
+    {
+      "type": "PROTOTYPE_POLLUTION",
+      "severity": "FATAL",
+      "match": "result[key] = value;",
+      "description": "Writes a property whose name comes from user input. Keys such as __proto__ or constructor reach inherited members of the result object.",
+      "strategy": "Skip dangerous keys explicitly, or store entries in a Map or in an object created with Object.create(null)."
+    },
+    {
+      "type": "VAR_HOISTING",
+      "severity": "HEX",
+      "match": "var separator = pairs[i].indexOf('=');",
+      "description": "The var declarations inside the loop are hoisted to function scope, so separator, rawKey, and rawValue leak out of each iteration.",
+      "strategy": "Declare the per-iteration values with const inside a for...of loop."
+    },
+    {
+      "type": "IMPLICIT_COERCION",
+      "severity": "HEX",
+      "match": "text.charAt(0) == '?'",
+      "description": "Loose equality compares through implicit conversion, which hides type mistakes in the comparison.",
+      "strategy": "Use startsWith or strict equality so that only strings are compared."
+    },
+    {
+      "type": "IMPLICIT_COERCION",
+      "severity": "HEX",
+      "match": "Object.prototype.toString.call(result[key]) == '[object Array]'",
+      "description": "Detects arrays through a string comparison with loose equality instead of a direct type check.",
+      "strategy": "Replace the check with Array.isArray, which needs no string comparison."
+    }
+  ],
+  "inputs": [
+    "",
+    "?",
+    "a=1",
+    "?a=1&b=2",
+    "a=1&a=2&a=3",
+    "a",
+    "a=&b=",
+    "x=%20y+z",
+    "__proto__=x&a=1",
+    "constructor=1&constructor=2",
+    "&&&",
+    "k=v=w"
+  ]
+}

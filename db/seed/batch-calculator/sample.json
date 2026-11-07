@@ -1,0 +1,71 @@
+{
+  "title": "Batch calculator (legacy Node callbacks)",
+  "sourceLanguage": "legacy-node",
+  "entryFunction": "calculateBatch",
+  "targetStack": "TypeScript 6 (strict mode, ES2022)",
+  "numRuns": 1000,
+  "seed": 20260103,
+  "requirementsTitle": "Batch calculator",
+  "criteria": [
+    "THE calculateBatch function SHALL return an object with a results array of exactly 3 entries and a numeric failures count.",
+    "WHEN a job exists at position 0, 1, or 2 and its operator is one of +, -, *, /, or %, THE calculateBatch function SHALL store the result of applying the operator to a and b at the same position in results.",
+    "IF a job is missing at one of the first three positions, THEN THE calculateBatch function SHALL store null at that position and SHALL increase failures by 1.",
+    "IF the operator of a job is not one of the supported operators, THEN THE calculateBatch function SHALL store null at that position and SHALL increase failures by 1.",
+    "THE calculateBatch function SHALL ignore every job after the third.",
+    "THE calculateBatch function SHALL NOT evaluate any operator outside the supported list."
+  ],
+  "design": "# Design: Batch calculator\n\nEntry function: `calculateBatch(input)`.\n\nInput: an object `{ jobs }` where `jobs` is an array of `{ a: number, b: number, op: string }`.\n\nOutput: an object `{ results, failures }`. `results` holds exactly three entries, each a number or null, and `failures` counts the null entries.\n\nThe function is pure and deterministic. The legacy version chains Node-style callbacks and builds each operation with `new Function`. The TypeScript version loops over the first three positions and selects the operation with a switch statement.",
+  "invariants": {
+    "input": "object { jobs: { a: number, b: number, op: string }[] }",
+    "output": "object { results: (number | null)[], failures: number }",
+    "list": [
+      "results always has exactly 3 entries.",
+      "failures equals the number of null entries in results.",
+      "Only the operators +, -, *, /, and % produce a number.",
+      "Jobs after the third position never influence the output.",
+      "Calling the function twice with the same input returns deeply equal objects."
+    ]
+  },
+  "curses": [
+    {
+      "type": "CALLBACK_HELL",
+      "severity": "BLOOD_CURSE",
+      "match": "runJob(job3, error3, function (value3) {",
+      "description": "The third job is processed at the sixth level of nested callbacks, so the control flow forms a pyramid and errors are easy to lose.",
+      "strategy": "Replace the nested callbacks with a loop over the first three positions, or with async functions if the work becomes asynchronous."
+    },
+    {
+      "type": "EVAL_INJECTION",
+      "severity": "FATAL",
+      "match": "new Function('a', 'b'",
+      "description": "Builds executable code from the job operator at run time. An unchecked operator would let input data run arbitrary code.",
+      "strategy": "Replace dynamic code with a switch or a lookup of supported operator functions."
+    },
+    {
+      "type": "VAR_HOISTING",
+      "severity": "HEX",
+      "match": "var jobs = input.jobs;",
+      "description": "The var declaration is hoisted to function scope and can be read before it is assigned, which hides ordering mistakes.",
+      "strategy": "Declare values with const where they are never reassigned and with let only where they are."
+    },
+    {
+      "type": "VAR_HOISTING",
+      "severity": "HEX",
+      "match": "var operation = new Function",
+      "description": "The var declaration inside a conditional flow is hoisted to function scope and leaks into the rest of the function.",
+      "strategy": "Remove the dynamic operation and compute the value directly in a block-scoped const."
+    }
+  ],
+  "inputs": [
+    { "jobs": [] },
+    { "jobs": [{ "a": 1, "b": 2, "op": "+" }] },
+    { "jobs": [{ "a": 6, "b": 3, "op": "/" }, { "a": 7, "b": 2, "op": "%" }, { "a": 2, "b": 5, "op": "*" }] },
+    { "jobs": [{ "a": 1, "b": 0, "op": "/" }] },
+    { "jobs": [{ "a": 1, "b": 2, "op": "^" }] },
+    { "jobs": [{ "a": 1, "b": 1, "op": "+" }, { "a": 1, "b": 1, "op": "+" }, { "a": 1, "b": 1, "op": "+" }, { "a": 9, "b": 9, "op": "+" }] },
+    { "jobs": [{ "a": -3, "b": 4, "op": "-" }] },
+    { "jobs": [{ "a": 0, "b": 0, "op": "/" }] },
+    { "jobs": [{ "a": 5, "b": 2, "op": "x" }, { "a": 5, "b": 2, "op": "-" }] },
+    { "jobs": [{ "a": 0.5, "b": 0.25, "op": "*" }, { "a": 10, "b": 3, "op": "%" }] }
+  ]
+}
