@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "lazarus-curse-scanner": {
+      "command": "node",
+      "args": ["./packages/mcp-curse-scanner/dist/index.js"],
+      "env": { "NODE_ENV": "development" },
+      "disabled": true,
+      "autoApprove": ["scan_ast_curses", "extract_function_signatures"]
+    }
+  }
+}
