@@ -4,7 +4,7 @@
       "command": "node",
       "args": ["./packages/mcp-curse-scanner/dist/index.js"],
       "env": { "NODE_ENV": "development" },
-      "disabled": true,
+      "disabled": false,
       "autoApprove": ["scan_ast_curses", "extract_function_signatures"]
     }
   }
