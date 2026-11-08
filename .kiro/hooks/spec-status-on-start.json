@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Spec status on session start",
+      "trigger": "SessionStart",
+      "description": "Prints the task progress of every spec at the start of a session.",
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/spec-status.mjs",
+        "timeout": 10
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Run scanner tests on save",
+      "trigger": "PostFileSave",
+      "description": "Runs the mcp-curse-scanner Vitest suite when a source or test file in that package is saved.",
+      "matcher": "packages.mcp-curse-scanner.(src|test).*[.]ts$",
+      "action": {
+        "type": "command",
+        "command": "pnpm --filter @lazarus/mcp-curse-scanner test",
+        "timeout": 120
+      }
+    }
+  ]
+}

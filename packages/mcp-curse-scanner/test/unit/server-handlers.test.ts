@@ -42,7 +42,7 @@ describe('tool handlers', () => {
     connection = await connect();
     const result = await connection.client.callTool({
       name: 'scan_ast_curses',
-      arguments: { source: 'é'.repeat(1_048_576), sourceLanguage: 'es3' },
+      arguments: { source: '\u00e9'.repeat(1_048_576), sourceLanguage: 'es3' },
     });
     expect(result.isError).toBe(true);
     expect(JSON.parse(textOf(result as { content: unknown }))).toMatchObject({ code: 'INPUT_TOO_LARGE' });

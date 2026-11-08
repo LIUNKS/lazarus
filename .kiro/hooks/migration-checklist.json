@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Migration checklist",
+      "trigger": "PostFileCreate",
+      "description": "Reminds the agent of the RLS and Flyway rules whenever a new migration file is created.",
+      "matcher": "db.migrations.V[0-9]+__.*[.]sql$",
+      "action": {
+        "type": "agent",
+        "prompt": "A new Flyway migration was just created. Before finishing, check it against .kiro/steering/database-and-exorcism.md: (1) RLS is enabled on every new table and policies use (select auth.uid()); (2) every new corpse_id foreign key and user_id column has an index; (3) CHECK constraints stay consistent with the allowed values in the steering file, and an existing constraint is changed with a NEW migration, never by editing V1 or V2; (4) no secrets or database passwords appear in the file; (5) tell the user to run `pnpm db:migrate` and `pnpm test:db`, and update .env.example only if a new variable was introduced. Do not edit migrations that already existed."
+      }
+    }
+  ]
+}

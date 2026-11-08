@@ -1,5 +1,5 @@
 // Static isolation checks over the source tree (Requirements 2, 4, 13, and 17).
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -14,7 +14,12 @@ const SERVER_ONLY_NAMES = [
   'GROQ_API_KEY',
   'GOOGLE_GENERATIVE_AI_API_KEY',
   'LLM_MODEL',
+  'LLM_FALLBACK_MODEL',
 ];
+
+// 05-llm-pipeline-api: model settings are read in exactly one module. Only this file may mention the four LLM_Config names.
+const LLM_CONFIG_NAMES = ['GROQ_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'LLM_MODEL', 'LLM_FALLBACK_MODEL'];
+const LLM_CONFIG_FILE = path.join(SRC, 'lib', 'llm', 'config.ts');
 
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -74,10 +79,13 @@ describe('R2 server-only isolation (static)', () => {
     }
   });
 
-  it('never reads the service role key, a model key, or a model id anywhere in the app', () => {
+  it('never reads the service role key anywhere, and mentions the LLM_Config names only in lib/llm/config.ts', () => {
     for (const file of productionFiles) {
       const source = read(file);
-      for (const name of SERVER_ONLY_NAMES) expect(source.includes(name), `${path.relative(SRC, file)} mentions ${name}`).toBe(false);
+      for (const name of SERVER_ONLY_NAMES) {
+        if (file === LLM_CONFIG_FILE && LLM_CONFIG_NAMES.includes(name)) continue;
+        expect(source.includes(name), `${path.relative(SRC, file)} mentions ${name}`).toBe(false);
+      }
     }
   });
 
@@ -106,15 +114,24 @@ describe('R4 and R13 source rules', () => {
   });
 });
 
-describe('R17 scope', () => {
-  it('has no LLM client, no analysis route handlers, and no code execution', () => {
+describe('R17 scope (amended by 05-llm-pipeline-api)', () => {
+  const LLM_DIR = path.join(SRC, 'lib', 'llm') + path.sep;
+
+  it('imports an LLM SDK only under lib/llm/, and never evaluates or runs code', () => {
     for (const file of productionFiles) {
       const source = read(file);
-      expect(/from\s*['"](?:ai|@ai-sdk\/[^'"]+)['"]/.test(source), `${path.relative(SRC, file)} imports an LLM SDK`).toBe(false);
+      if (!file.startsWith(LLM_DIR)) {
+        expect(/from\s*['"](?:ai|@ai-sdk\/[^'"]+)['"]/.test(source), `${path.relative(SRC, file)} imports an LLM SDK outside lib/llm`).toBe(false);
+      }
       expect(/\b(?:eval|new Function)\s*\(/.test(source), `${path.relative(SRC, file)} evaluates code`).toBe(false);
       expect(/from\s*['"](?:node:vm|vm|acorn)['"]/.test(source), `${path.relative(SRC, file)} parses or runs code`).toBe(false);
     }
+  });
+
+  it('has no Route Handler folder under app/api other than scan, seance, and reincarnate', () => {
     const apiDir = path.join(SRC, 'app', 'api');
-    expect(() => readdirSync(apiDir)).toThrow();
+    const entries = existsSync(apiDir) ? readdirSync(apiDir) : [];
+    const allowed = new Set(['scan', 'seance', 'reincarnate']);
+    for (const entry of entries) expect(allowed.has(entry), `unexpected app/api/${entry}`).toBe(true);
   });
 });

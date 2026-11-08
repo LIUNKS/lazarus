@@ -31,6 +31,11 @@ export function fakeClient(result: FakeResult | FakeResult[], claims?: Claims) {
       calls.push(['from', [table]]);
       return builder;
     },
+    // Records the call and returns the same thenable builder, so `.abortSignal(...)` chains and `await` resolves the next result.
+    rpc: (name: string, args?: unknown) => {
+      calls.push(['rpc', [name, args]]);
+      return builder;
+    },
     auth: {
       getClaims: async () => claims ?? { data: null, error: null },
       signOut: async () => {
@@ -46,7 +51,8 @@ export function fakeClient(result: FakeResult | FakeResult[], claims?: Claims) {
   return { client, calls };
 }
 
-export const WRITE_METHODS = ['insert', 'update', 'delete', 'upsert', 'signOut', 'signInWithOAuth'] as const;
+// An RPC may write (reserve_llm_call and replace_corpse_curses do), so it counts as a write call.
+export const WRITE_METHODS = ['insert', 'update', 'delete', 'upsert', 'rpc', 'signOut', 'signInWithOAuth'] as const;
 
 export function writeCalls(calls: FakeCall[]): FakeCall[] {
   return calls.filter(([method]) => (WRITE_METHODS as readonly string[]).includes(method));
