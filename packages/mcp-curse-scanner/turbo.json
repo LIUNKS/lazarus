@@ -1,0 +1,15 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/db/seed/*/legacy.js",
+        "$TURBO_ROOT$/db/seed/*/sample.json",
+        "$TURBO_ROOT$/.kiro/settings/mcp.json"
+      ]
+    }
+  }
+}
