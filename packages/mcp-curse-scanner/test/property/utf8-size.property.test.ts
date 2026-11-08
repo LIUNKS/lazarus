@@ -23,7 +23,7 @@ describe('UTF-8 size rule', () => {
     // Feature: 02-scanner-and-verifier, Property 7: UTF-8 size rule
     const unit = fc.oneof(
       fc.constant('a'),
-      fc.constant('é'),
+      fc.constant('\u00e9'),
       fc.constant('€'),
       fc.constant('\u{1F600}'),
       fc.constant('\ud800'),
