@@ -156,7 +156,7 @@ export function encodeInput(value: unknown, maxBytes: number): EncodeResult {
         return reject(typeof item, path);
       default:
         if (item === null) return emit('null');
-        return writeObject(item, path, depth);
+        return writeObject(item as object, path, depth);
     }
   };
 
