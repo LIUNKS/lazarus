@@ -22,21 +22,26 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
 
 ## Tasks
 
-- [ ] 1. Scaffold the package and confirm the toolchain
-  - [ ] 1.1 Create the package files
+- [x] 1. Scaffold the package and confirm the toolchain
+  - [x] 1.1 Create the package files
     - Create `packages/sandbox-runner/package.json` (`@lazarus/sandbox-runner`, `private`, `type: module`, `engines.node >=24`, scripts `build`, `test` = `vitest run`, `lint`, `exports` and `types` pointing at `dist/`), `tsconfig.json` extending the root base, `vitest.config.ts` extending the root shared config, an empty `src/index.ts`, and a placeholder `scripts/build-worker.mjs`
     - Dependencies: `@lazarus/pbt-verifier` (workspace), `fast-check@^4`; devDependencies: `esbuild`, `vitest`, `typescript@^6`, `@types/node`
     - _Requirements: 1.1, 1.2, 1.3, 1.6, 1.9_
-  - [ ] 1.2 Install and check the toolchain assumptions
+  - [x] 1.2 Install and check the toolchain assumptions
     - Run `pnpm install`; confirm `typescript` resolves to 6.x and `fast-check` to 4.x
     - Spike (throwaway scripts, not committed): (a) `esbuild` bundles `fast-check` to a single IIFE with no Node built-in imports and the bundle runs in a `vm` context created with `codeGeneration.strings: false`; (b) `vm.createContext(vm.constants.DONT_CONTEXTIFY, { microtaskMode: 'afterEvaluate', codeGeneration: { strings: false, wasm: false } })` is accepted and `Error.prepareStackTrace` can be redefined as non-configurable. Write the result of each check in the task notes; if (a) fails, stop and ask the user which fallback of Open Item O1 to take
+    - Task notes (spike run on Node.js v26.13.0, esbuild 0.28.2, fast-check 4.10.2, typescript 6.0.3):
+      - (a) `esbuild` bundles `fast-check` to one IIFE (about 379 KB) that references no Node.js built-in. It runs in a context created with `codeGeneration.strings: false`: a passing property, a failing property with shrinking, `fc.anything()`, and an `fc.asyncProperty` that settles by microtasks all work, and `eval` throws `EvalError`. One difference from Open Item O1: the bundle reads the free names `setTimeout` and `clearTimeout` when it loads. The build wraps the bundle in a function that declares both as local stubs that throw, so the context still defines no timer (Requirement 6.1). No fallback of O1 is needed.
+      - (b) `vm.createContext(vm.constants.DONT_CONTEXTIFY, { microtaskMode: 'afterEvaluate', codeGeneration: { strings: false, wasm: false } })` is accepted, and `Error.prepareStackTrace` can be redefined as non-writable and non-configurable (a later `defineProperty` throws `TypeError`). This confirms Open Items O2 and O6.
+      - `pnpm install` exits with code 1 when a dependency has an install script that is neither allowed nor denied. `esbuild` has one, so `pnpm-workspace.yaml` now denies it (`allowBuilds: esbuild: false`). `esbuild` works without that script. This is one root-file change outside the scope paragraph.
+      - The package has a `turbo.json` that makes `test` depend on its own `build`, because the tests start real Workers from `dist/worker/`.
     - _Requirements: 1.5, 4.5, 4.8_
-  - [ ] 1.3 Add the additive export to `packages/pbt-verifier`
+  - [x] 1.3 Add the additive export to `packages/pbt-verifier`
     - Add a subpath export (for example `@lazarus/pbt-verifier/shared`) that re-exports `compileModernCode(source, entryFunction)`, `sanitizeResult`, `formatEvidence`, `deepEquivalent`, and the result types from existing modules. Extract `compileModernCode` from the existing modern loader without changing its behavior
     - Run the Verifier's own tests and confirm they pass unchanged
     - _Requirements: 1.8_
 
-- [ ] 2. Checkpoint - Scaffolding builds, lints, and tests
+- [x] 2. Checkpoint - Scaffolding builds, lints, and tests
   - Run `pnpm exec turbo run build lint test --filter=@lazarus/sandbox-runner --filter=@lazarus/pbt-verifier` and confirm exit code 0.
   - Ensure all tests pass, ask the user if questions arise.
 

@@ -120,22 +120,30 @@ function typeCheck(source: ts.SourceFile, code: string): string[] {
     .map(renderDiagnostic);
 }
 
+/** Result of the compile step: the transpiled CommonJS text, or the compile error. */
+export type CompileResult =
+  | { ok: true; js: string }
+  | { ok: false; code: 'MODERN_COMPILE_ERROR'; message: string };
+
 /**
- * Loads Modern_Code (Requirement 5): rejects imports, type-checks under `strict`, transpiles to
- * CommonJS, and evaluates the result in a fresh sandbox, separate from the legacy one.
+ * The compile step of Requirement 5 on its own: rejects imports, type-checks under `strict`, and
+ * transpiles to CommonJS. It runs only the TypeScript compiler on text and executes nothing.
  *
- * `timeoutMs` bounds the top-level code of the transpiled module.
+ * `entryFunction` is part of the signature for callers that compile and load in separate steps. The
+ * compile step does not need it: a missing export is reported when the module is loaded.
  */
-export function loadModern(code: string, entryFunction: string, timeoutMs: number): LoadResult {
+export function compileModernCode(code: string, entryFunction: string): CompileResult {
+  void entryFunction;
   const source = ts.createSourceFile(MODULE_FILE, code, ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
 
   const importNode = findImport(source);
   if (importNode !== undefined) {
     const { line, character } = ts.getLineAndCharacterOfPosition(source, importNode.getStart(source));
-    return loadFailure(
-      'MODERN_COMPILE_ERROR',
-      `Imports are not supported in the modern code (found at ${line + 1}:${character + 1}). Make the module self-contained.`,
-    );
+    return {
+      ok: false,
+      code: 'MODERN_COMPILE_ERROR',
+      message: `Imports are not supported in the modern code (found at ${line + 1}:${character + 1}). Make the module self-contained.`,
+    };
   }
 
   const diagnostics = typeCheck(source, code);
@@ -145,13 +153,25 @@ export function loadModern(code: string, entryFunction: string, timeoutMs: numbe
       diagnostics.length > shown.length
         ? `The modern code has ${diagnostics.length} type errors. First ${shown.length}:`
         : `The modern code has ${diagnostics.length} type error${diagnostics.length === 1 ? '' : 's'}:`;
-    return loadFailure('MODERN_COMPILE_ERROR', [header, ...shown].join('\n'));
+    return { ok: false, code: 'MODERN_COMPILE_ERROR', message: [header, ...shown].join('\n') };
   }
 
-  const output = ts.transpileModule(code, {
+  const js = ts.transpileModule(code, {
     compilerOptions: TRANSPILE_OPTIONS,
     fileName: MODULE_FILE,
   }).outputText;
+  return { ok: true, js };
+}
+
+/**
+ * Loads Modern_Code (Requirement 5): rejects imports, type-checks under `strict`, transpiles to
+ * CommonJS, and evaluates the result in a fresh sandbox, separate from the legacy one.
+ *
+ * `timeoutMs` bounds the top-level code of the transpiled module.
+ */
+export function loadModern(code: string, entryFunction: string, timeoutMs: number): LoadResult {
+  const compiled = compileModernCode(code, entryFunction);
+  if (!compiled.ok) return loadFailure(compiled.code, compiled.message);
 
   // `exports` is created inside the sandbox, so no host object is reachable through it.
   const sandbox = createSandbox();
@@ -159,7 +179,7 @@ export function loadModern(code: string, entryFunction: string, timeoutMs: numbe
   const readEntry = createEntryReader(sandbox, 'exports', timeoutMs);
 
   try {
-    sandbox.evaluate(output, 'modern.js', timeoutMs);
+    sandbox.evaluate(compiled.js, 'modern.js', timeoutMs);
   } catch (error) {
     return loadFailure('MODERN_LOAD_ERROR', describeThrown(error));
   }
