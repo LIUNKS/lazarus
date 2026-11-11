@@ -48,6 +48,7 @@ var stringCharCodeAt = uncurry(String.prototype.charCodeAt);
 var stringSlice = uncurry(String.prototype.slice);
 var stringIndexOf = uncurry(String.prototype.indexOf);
 var typedArrayLength = getterOf(Object.getPrototypeOf(Int8Array.prototype), 'length');
+var promiseThen = uncurry(Promise.prototype.then);
 
 // Lookup tables without a prototype, so a key such as "constructor" finds nothing.
 var TYPED_ARRAYS = ObjectCreate(null);
@@ -108,9 +109,11 @@ var isFailure = function (value) {
   }
 };
 
-// Requirement 4, criterion 8.
+// Requirement 4, criterion 8, and Requirement 6, criterion 1. A fresh context also carries a
+// `console` object (measured on Node.js 26), which is a Denied_Name, so it is removed as well.
 delete globalThis.SharedArrayBuffer;
 delete globalThis.Atomics;
+delete globalThis.console;
 ReflectDefineProperty(Error, 'prepareStackTrace', (function () {
   var descriptor = ObjectCreate(null);
   descriptor.value = undefined;
@@ -119,3 +122,61 @@ ReflectDefineProperty(Error, 'prepareStackTrace', (function () {
   descriptor.configurable = false;
   return descriptor;
 })());
+
+var truncate = function (text, max) {
+  return text.length > max ? stringSlice(text, 0, max - 3) + '...' : text;
+};
+
+// Denied_Names of the glossary. A ReferenceError that names one of them is reported as a
+// Forbidden_Capability. This is a best-effort report and never a security decision.
+var DENIED_NAMES = ObjectCreate(null);
+DENIED_NAMES.process = true;
+DENIED_NAMES.require = true;
+DENIED_NAMES.module = true;
+DENIED_NAMES.global = true;
+DENIED_NAMES.fetch = true;
+DENIED_NAMES.XMLHttpRequest = true;
+DENIED_NAMES.WebSocket = true;
+DENIED_NAMES.Buffer = true;
+DENIED_NAMES.console = true;
+DENIED_NAMES.setTimeout = true;
+DENIED_NAMES.setInterval = true;
+DENIED_NAMES.setImmediate = true;
+DENIED_NAMES.queueMicrotask = true;
+
+// Reads `name` and `message` of a thrown value and nothing else (Requirement 6, criterion 4). Each is
+// kept only when it is a string. A getter may run untrusted code; the caller is under a vm timeout.
+var readThrown = function (thrown) {
+  var record = ObjectCreate(null);
+  record.name = null;
+  record.message = null;
+  if ((typeof thrown === 'object' && thrown !== null) || typeof thrown === 'function') {
+    try {
+      var name = thrown.name;
+      if (typeof name === 'string') record.name = name;
+      var message = thrown.message;
+      if (typeof message === 'string') record.message = message;
+    } catch (ignored) {}
+  }
+  return record;
+};
+
+// The name of the denied capability a thrown value points at, or '' when there is none.
+var classifyForbidden = function (record) {
+  if (record.name === 'EvalError' && CONFIG.allowDynamicCode !== true) return 'dynamic code generation';
+  if (record.name === 'CompileError') return 'WebAssembly compilation';
+  if (record.name === 'ReferenceError' && record.message !== null) {
+    var end = stringIndexOf(record.message, ' is not defined');
+    if (end > 0) {
+      var identifier = stringSlice(record.message, 0, end);
+      if (DENIED_NAMES[identifier] === true) return identifier;
+    }
+  }
+  return '';
+};
+
+// "Name: message", at most 300 characters, for load errors and Test_Code errors (Requirement 6, criterion 5).
+var describeThrown = function (record) {
+  if (record.name === null) return 'a value that is not an error was thrown';
+  return truncate(record.message === null || record.message === '' ? record.name : record.name + ': ' + record.message, 300);
+};

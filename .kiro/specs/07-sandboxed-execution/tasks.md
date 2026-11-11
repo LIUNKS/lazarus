@@ -102,17 +102,24 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 8. Worker bootstrap and Trusted_Scripts
-  - [ ] 8.1 Write the Trusted_Script `side.js`
+  - [x] 8.1 Write the Trusted_Script `side.js`
     - Side adapter: decode input into a fresh copy, call the Entry_Function in `try/catch`, return the Canonical_Form of the outcome; read only `name` (and `message` for classification) of thrown values and never `stack`; classify Forbidden_Capabilities (`EvalError` while dynamic code is off, `ReferenceError` naming a Denied_Name, WebAssembly `CompileError`); bind the entry point under a per-run random, non-enumerable, non-writable global name; renderer for the `rendered` text of cases mode
     - _Requirements: 4.7, 4.10, 6.3, 6.4, 8.1, 8.2, 8.4, 8.6_
-  - [ ] 8.2 Write the Trusted_Script `driver.js`
+  - [x] 8.2 Write the Trusted_Script `driver.js`
     - Bundled `fast-check` (from the build), `legacyFn`, `modernFn`, `assertEquivalent` (same text input to both adapters, string comparison, `EquivalenceError` with rendered outcomes truncated to 500 characters, progress state with the last difference and `fc.stringify` input truncated to 2000 characters), the `fc.check(property, { numRuns, seed })` runner, and result classification as in the design
     - _Requirements: 9.3, 9.4, 9.5, 9.6_
-  - [ ] 8.3 Write `src/worker/exec-entry.ts` (strict ES module; imports only `node:vm` and `node:worker_threads`)
+  - [x] 8.3 Write `src/worker/exec-entry.ts` (strict ES module; imports only `node:vm` and `node:worker_threads`)
     - Property and cases bootstraps from the design: three or two contexts created with `DONT_CONTEXTIFY`, `microtaskMode: 'afterEvaluate'`, `codeGeneration` from `allowDynamicCode`, no `importModuleDynamically`; Trusted_Scripts first, then Untrusted_Code under per-phase `timeout = min(remaining budget, phase cap)`; Test_Code compiled with `vm.Script`; only strings, numbers, and booleans cross from the Worker realm; `unhandledRejection` handler that records only the dynamic-import code; progress marker read after a timeout; result length check before `postMessage`
     - _Requirements: 4.1, 4.4, 4.5, 4.6, 4.9, 4.10, 5.3, 5.9, 6.1, 6.2, 6.6, 8.6, 9.7, 10.4_
-  - [ ] 8.4 Write the build script `scripts/build-worker.mjs`
+  - [x] 8.4 Write the build script `scripts/build-worker.mjs`
     - Bundle `exec-entry.ts` and `compile-entry.ts` to `dist/worker/` with `esbuild`; embed the Trusted_Scripts and the `fast-check` IIFE as text constants so the Worker reads no file; make `pnpm build` run it after `tsc`
+    - Task notes (Node.js v26.13.0):
+      - Open Item O7 is confirmed: a dynamic `import()` in a context without a loader returns a promise that rejects with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`. The rejection reaches the `unhandledRejection` handler of the bootstrap as an Error of the Worker realm and does not end the Worker. The handler reads `code` only from an Error of its own realm, so a value rejected by untrusted code is never inspected.
+      - The error of a `vm` timeout is not an Error of the Worker realm, so it cannot be told apart from a look-alike thrown by untrusted code by its type. The bootstrap recognizes a timeout by the elapsed time and reads nothing from the thrown value.
+      - A fresh context carries a `console` object, although the design says it exposes only the ECMAScript built-ins. `console` is a Denied_Name, so `prelude.js` deletes it together with `SharedArrayBuffer` and `Atomics`.
+      - The Trusted_Scripts are fragments that the bootstrap joins inside one function body per context, so they share closures and add nothing to the global object except the one entry point.
+      - The Test_Code is compiled with `vm.compileFunction` and `parsingContext`, so a body cannot close the wrapper function early. The text is first parsed as a script only to report the engine's syntax message.
+      - The Compile_Worker entry is emitted by `tsc` and is not bundled, because the TypeScript compiler must find its library files in `node_modules`.
     - _Requirements: 1.5_
   - [ ] 8.5 Write bootstrap invariant tests (run through the real Worker)
     - Untrusted probe code reports `typeof` of every Denied_Name, `SharedArrayBuffer`, `Atomics`, `WebAssembly.compile`, `import()`, `eval`, and `Function` under both `allowDynamicCode` values; a probe checks that no value reachable from the globals has a Worker-realm prototype (compare `Object.getPrototypeOf` chains with the context's own intrinsics); the prelude lock of `Error.prepareStackTrace` holds; the bootstrap file is an ES module and begins with strict semantics; a source scan asserts that `src/worker/**` and the Trusted_Scripts import no `node:fs`, `node:net`, `node:http(s)`, `node:child_process`, and that the whole package contains no `process.env` read and no `console` call

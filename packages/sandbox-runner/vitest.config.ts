@@ -3,5 +3,7 @@ import shared from '../../vitest.shared.ts';
 
 export default mergeConfig(
   shared,
-  defineConfig({ test: { include: ['test/**/*.test.ts'], testTimeout: 30_000 } }),
+  defineConfig({
+    test: { include: ['test/**/*.test.ts'], setupFiles: ['test/support/setup.ts'], testTimeout: 30_000 },
+  }),
 );
