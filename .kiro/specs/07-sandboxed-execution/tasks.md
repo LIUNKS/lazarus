@@ -46,37 +46,37 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 3. Types, option validation, and limits
-  - [ ] 3.1 Write `src/types.ts`
+  - [x] 3.1 Write `src/types.ts`
     - `Origin`, `Caller`, `GateConfig`, `DenialReason`, `SandboxLimits`, `SandboxVerifyOptions`, `LiveRequest`, `SandboxErrorCode`, `SharedErrorCode`, `Executor`, `SandboxResult`, `CaseOutcome`, `CasesResult`, as in the design
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
-  - [ ] 3.2 Write `src/options.ts`
+  - [x] 3.2 Write `src/options.ts`
     - Validate `numRuns` (100 to 1000, default 1000), `seed` (32-bit signed integer, default `Date.now() | 0`), `entryFunction` (identifier, not reserved), `allowDynamicCode`, every `SandboxLimits` field against its range, and the byte length of each code string against `maxSourceBytes`. Return a resolved options object or an `INVALID_OPTIONS` result. Never throw
     - _Requirements: 5.1, 5.2, 9.1_
   - [ ] 3.3 Write option tests
     - Example tests for each range boundary (lowest, highest, one outside), non-integers, defaults, oversized sources, invalid identifiers; assert no Worker is created (injectable spawn spy)
     - _Requirements: 5.1, 5.2, 9.1_
 
-- [ ] 4. Live-execution gate
-  - [ ] 4.1 Write `src/gate/policy.ts`
+- [x] 4. Live-execution gate
+  - [x] 4.1 Write `src/gate/policy.ts`
     - `decideLiveExecution(request, config)`: pure, checks in the order of Requirement 3.8, default config with `userExecutionEnabled: false` and `allowAnonymousSampleRuns: false`, no environment access
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.8_
-  - [ ] 4.2 Write `src/gate/gate.ts`
+  - [x] 4.2 Write `src/gate/gate.ts`
     - `createLiveExecutionGate(config)` with `acquire(request)`: policy first, then an atomic per-user and global counter check; idempotent `lease.release()`; validate `perUserConcurrency` and `globalConcurrency` as integers >= 1
     - _Requirements: 3.9, 3.10, 3.11, 3.12_
-  - [ ] 4.3 Write gate tests
+  - [x] 4.3 Write gate tests
     - Property test (design Property 3, gate truth table): for generated requests and configs, the decision equals a table-driven oracle; an anonymous caller never gets `sandbox`; `origin: 'user'` never gets `in-process`; malformed requests give `INVALID_REQUEST`
     - Property test (design Property 4, lease conservation): for generated sequences of acquire and release (including double release), active leases never exceed the limits and return to 0
     - Example tests: each denial reason with the minimal request that triggers it; the order of checks when several fail
     - _Requirements: 3.1 to 3.11_
 
-- [ ] 5. Value codec
-  - [ ] 5.1 Write `src/host/tagged-value.ts`
+- [x] 5. Value codec
+  - [x] 5.1 Write `src/host/tagged-value.ts`
     - Host encoder for inputs following the table in the design: reject functions, symbols, `WeakMap`, `Promise`, host-only objects, and cycles with `UNSUPPORTED_VALUE` and a path; expand shared references; ignore symbol-keyed non-function values; enforce depth 256 and `maxValueBytes`
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.6_
-  - [ ] 5.2 Write the Trusted_Scripts `prelude.js` and `codec.js`
+  - [x] 5.2 Write the Trusted_Scripts `prelude.js` and `codec.js`
     - Plain ES2022 text files with no imports. `prelude.js`: capture intrinsics in closures, delete `SharedArrayBuffer` and `Atomics`, lock `Error.prepareStackTrace`, bind nothing else. `codec.js`: `encode` and `decode` with incremental size and depth counters, sorted keys, ancestor back-references for cycles, markers for functions and symbols, `Object.defineProperty` for properties, no getter calls, no `__proto__` assignment, decoding with the constructors of the running context
     - _Requirements: 4.7, 4.8, 5.9, 7.5, 7.6, 7.7, 7.8, 8.3_
-  - [ ] 5.3 Write codec tests (evaluate the scripts in a plain `vm` context in the test)
+  - [x] 5.3 Write codec tests (evaluate the scripts in a plain `vm` context in the test)
     - Property test (design Property 1, round trip): `canonical(decode(encode(v))) === canonical(v)` for generated supported values, and mutating the decoded copy never changes the original; include `-0`, `NaN`, holes, nested `Map`/`Set`, `__proto__` keys
     - Property test (design Property 2, agreement with the Verifier): for generated pairs of supported values, equal Canonical_Forms iff `deepEquivalent`, including pairs built in different contexts and the cases `+0` vs `-0`, `NaN` vs `NaN`, shared vs duplicated references
     - Example tests: unsupported input kinds and cyclic input give `UNSUPPORTED_VALUE` with a path; an output cycle encodes as a back-reference and two equal cyclic outputs have equal forms; an oversized or too-deep output is rejected while writing; malformed text and unknown tags are rejected by the decoder
