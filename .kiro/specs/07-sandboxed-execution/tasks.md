@@ -82,18 +82,22 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
     - Example tests: unsupported input kinds and cyclic input give `UNSUPPORTED_VALUE` with a path; an output cycle encodes as a back-reference and two equal cyclic outputs have equal forms; an oversized or too-deep output is rejected while writing; malformed text and unknown tags are rejected by the decoder
     - _Requirements: 7.1 to 7.9, 8.3, 8.5, 5.9_
 
-- [ ] 6. Host supervisor
-  - [ ] 6.1 Write `src/host/supervisor.ts`
+- [x] 6. Host supervisor
+  - [x] 6.1 Write `src/host/supervisor.ts`
     - `spawnRun(entry, data, limits)` as in the design: Worker options (`env: {}`, `argv: []`, `execArgv: []`, captured and drained stdio, `resourceLimits`, primitive-only `workerData`), kill timer, memory watchdog on `process.memoryUsage().arrayBuffers`, first-settlement-wins, `terminate()` on every path with a 1000 ms wait, a live-Worker counter exposed for tests only, and no blocking of the event loop
     - _Requirements: 4.1, 4.2, 4.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.11_
-  - [ ] 6.2 Write `src/host/result-parser.ts`
+  - [x] 6.2 Write `src/host/result-parser.ts`
     - Check the UTF-8 byte length against `maxResultBytes`, parse JSON, validate the exact field names, types, and ranges per result kind, drop unknown fields, map failures to `OUTPUT_LIMIT_EXCEEDED` or `SANDBOX_CRASH`
     - _Requirements: 5.8, 6.7_
-  - [ ] 6.3 Write supervisor tests with tiny fixture worker entries (not user code)
+  - [x] 6.3 Write supervisor tests with tiny fixture worker entries (not user code)
     - Cases: normal message, timeout (`SANDBOX_TIMEOUT`), heap limit (`SANDBOX_OUT_OF_MEMORY`, confirms Open Item O4), external-memory watchdog, uncaught error and non-zero exit (`SANDBOX_CRASH`), oversized result (`OUTPUT_LIMIT_EXCEEDED`), malformed result, a worker that floods stdout, a second message after the first. In every case assert the Worker is terminated, the live-Worker counter returns to its start value, and the Worker was created with an empty `env` and no inherited `execArgv`
+    - Task notes (Node.js v26.13.0):
+      - Open Item O4 is confirmed: a Worker that reaches its heap limit ends with `ERR_WORKER_OUT_OF_MEMORY` on the `error` event, and the run reports `SANDBOX_OUT_OF_MEMORY`.
+      - Open Item O5, measured: `process.memoryUsage().arrayBuffers` read on the host covers only the host thread. It stayed flat (0 MB) while a Worker held 192 MB of `ArrayBuffer` contents, so the watchdog of Requirement 5 criterion 6 never fired as written. The supervisor uses the per-Worker signal that O5 allows instead: it polls `worker.getHeapStatistics()` every 100 ms and compares `external_memory` with `maxExternalMemoryMb`. The call answered while the Worker ran a busy loop. The check is still best effort. Requirement 5 criterion 6 and the supervisor section of `design.md` name the old API and need the same amendment once the user agrees.
+      - Task 3.3 stays open until task 10.2, which adds the assertion that an options failure creates no Worker (the supervisor counts created Workers for that).
     - _Requirements: 4.1, 4.2, 4.3, 5.4, 5.5, 5.6, 5.7, 5.8, 5.11, 6.7_
 
-- [ ] 7. Checkpoint - Gate, codec, and supervisor
+- [x] 7. Checkpoint - Gate, codec, and supervisor
   - Run `pnpm --filter @lazarus/sandbox-runner lint` and `pnpm --filter @lazarus/sandbox-runner test`; confirm exit code 0.
   - Ensure all tests pass, ask the user if questions arise.
 
