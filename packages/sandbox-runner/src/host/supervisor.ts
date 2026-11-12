@@ -50,7 +50,7 @@ export function spawnWorker(entryUrl: URL, data: WorkerData, limits: SpawnLimits
       if (!existsSync(fileURLToPath(entryUrl))) return resolve({ kind: 'unavailable' });
       worker = new Worker(entryUrl, {
         workerData: data,
-        env: {}, // the default would copy process.env
+        env: {}, // the default would copy the environment of the host
         argv: [],
         execArgv: [], // do not inherit the CLI options of the parent
         stdout: true, // captured, then drained and discarded below

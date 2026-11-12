@@ -45,14 +45,14 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
   - Run `pnpm exec turbo run build lint test --filter=@lazarus/sandbox-runner --filter=@lazarus/pbt-verifier` and confirm exit code 0.
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Types, option validation, and limits
+- [x] 3. Types, option validation, and limits
   - [x] 3.1 Write `src/types.ts`
     - `Origin`, `Caller`, `GateConfig`, `DenialReason`, `SandboxLimits`, `SandboxVerifyOptions`, `LiveRequest`, `SandboxErrorCode`, `SharedErrorCode`, `Executor`, `SandboxResult`, `CaseOutcome`, `CasesResult`, as in the design
     - _Requirements: 2.1, 2.2, 2.3, 2.5_
   - [x] 3.2 Write `src/options.ts`
     - Validate `numRuns` (100 to 1000, default 1000), `seed` (32-bit signed integer, default `Date.now() | 0`), `entryFunction` (identifier, not reserved), `allowDynamicCode`, every `SandboxLimits` field against its range, and the byte length of each code string against `maxSourceBytes`. Return a resolved options object or an `INVALID_OPTIONS` result. Never throw
     - _Requirements: 5.1, 5.2, 9.1_
-  - [ ] 3.3 Write option tests
+  - [x] 3.3 Write option tests
     - Example tests for each range boundary (lowest, highest, one outside), non-integers, defaults, oversized sources, invalid identifiers; assert no Worker is created (injectable spawn spy)
     - _Requirements: 5.1, 5.2, 9.1_
 
@@ -101,7 +101,7 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
   - Run `pnpm --filter @lazarus/sandbox-runner lint` and `pnpm --filter @lazarus/sandbox-runner test`; confirm exit code 0.
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Worker bootstrap and Trusted_Scripts
+- [x] 8. Worker bootstrap and Trusted_Scripts
   - [x] 8.1 Write the Trusted_Script `side.js`
     - Side adapter: decode input into a fresh copy, call the Entry_Function in `try/catch`, return the Canonical_Form of the outcome; read only `name` (and `message` for classification) of thrown values and never `stack`; classify Forbidden_Capabilities (`EvalError` while dynamic code is off, `ReferenceError` naming a Denied_Name, WebAssembly `CompileError`); bind the entry point under a per-run random, non-enumerable, non-writable global name; renderer for the `rendered` text of cases mode
     - _Requirements: 4.7, 4.10, 6.3, 6.4, 8.1, 8.2, 8.4, 8.6_
@@ -121,23 +121,23 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
       - The Test_Code is compiled with `vm.compileFunction` and `parsingContext`, so a body cannot close the wrapper function early. The text is first parsed as a script only to report the engine's syntax message.
       - The Compile_Worker entry is emitted by `tsc` and is not bundled, because the TypeScript compiler must find its library files in `node_modules`.
     - _Requirements: 1.5_
-  - [ ] 8.5 Write bootstrap invariant tests (run through the real Worker)
+  - [x] 8.5 Write bootstrap invariant tests (run through the real Worker)
     - Untrusted probe code reports `typeof` of every Denied_Name, `SharedArrayBuffer`, `Atomics`, `WebAssembly.compile`, `import()`, `eval`, and `Function` under both `allowDynamicCode` values; a probe checks that no value reachable from the globals has a Worker-realm prototype (compare `Object.getPrototypeOf` chains with the context's own intrinsics); the prelude lock of `Error.prepareStackTrace` holds; the bootstrap file is an ES module and begins with strict semantics; a source scan asserts that `src/worker/**` and the Trusted_Scripts import no `node:fs`, `node:net`, `node:http(s)`, `node:child_process`, and that the whole package contains no `process.env` read and no `console` call
     - _Requirements: 1.7, 4.4, 4.5, 4.6, 4.7, 4.8, 6.1, 6.2_
 
-- [ ] 9. Compile stage
-  - [ ] 9.1 Write `src/worker/compile-entry.ts` and `src/host/compile-stage.ts`
+- [x] 9. Compile stage
+  - [x] 9.1 Write `src/worker/compile-entry.ts` and `src/host/compile-stage.ts`
     - Compile_Worker runs `compileModernCode` from `@lazarus/pbt-verifier` under `compileTimeoutMs` and a 256 MB old-generation limit, posts `{ ok, js }` or `{ ok: false, code, message }`; the host maps a compile error to `MODERN_COMPILE_ERROR` and a timeout to `SANDBOX_TIMEOUT` (message names the compile stage); no Exec_Worker is created after a compile error
     - _Requirements: 5.10, 5.12, 9.3_
-  - [ ] 9.2 Write compile-stage tests
+  - [x] 9.2 Write compile-stage tests
     - A type error and an `import` give `MODERN_COMPILE_ERROR` with no Exec_Worker created (spawn spy); a pathological recursive type with a short `compileTimeoutMs` gives `SANDBOX_TIMEOUT` and the Compile_Worker is terminated
     - _Requirements: 5.10, 5.12_
 
-- [ ] 10. Property mode
-  - [ ] 10.1 Write `src/property-mode.ts`
+- [x] 10. Property mode
+  - [x] 10.1 Write `src/property-mode.ts`
     - `runSandboxedVerification`: options validation (no Worker on failure), host input checks, Compile_Worker, Exec_Worker, result parsing, `formatEvidence` for `PASSED` and `FAILED`, `executor: 'sandbox-worker'`, `executionTimeMs` from `performance.now()` clamped to at least 1, `sanitizeResult` on every result, one `try/catch` returning `INTERNAL_ERROR`; messages bounded to 500 characters
     - _Requirements: 2.1, 2.4, 2.5, 2.6, 2.7, 2.8, 6.4, 6.5, 6.8, 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7, 9.10_
-  - [ ] 10.2 Write property-mode tests
+  - [x] 10.2 Write property-mode tests
     - Property test (design Property 5, seed determinism) for an equivalent and a differing pair with at least two seeds
     - Property test (design Property 6, parity with the Verifier) for pure function templates with an equivalent or differing modern version: same `status`, `totalRuns`, and `counterexample.input` as `verifyTestCode` with `origin: 'sample'`
     - Property test (design Property 10, evidence text): `evidence` equals `formatEvidence(result)` and contains no Forbidden_Phrase, including when legacy code throws an error whose message contains one
@@ -145,20 +145,24 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
     - Run the three Verifier fixtures with `numRuns: 1000` and assert `PASSED`
     - _Requirements: 2.8, 6.5, 9.2, 9.5, 9.6, 9.7, 9.8, 9.9, 9.10, 12.6_
 
-- [ ] 11. Cases mode
-  - [ ] 11.1 Write `src/cases-mode.ts`
+- [x] 11. Cases mode
+  - [x] 11.1 Write `src/cases-mode.ts`
     - `runSandboxedCases`: validate 1 to 1000 inputs and total encoded size, host-encode all inputs before any Worker, run the per-case loop with `caseTimeoutMs`, return one entry per input with `equivalent`, `legacy`, and `modern`, no `evidence` field, and the case index in a timeout message
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.6_
-  - [ ] 11.2 Write cases-mode tests
+  - [x] 11.2 Write cases-mode tests
     - Property test (design Property 8, case independence): for generated input lists and a generated permutation, each input has the same outcome
     - Example tests: bounds of `inputs`, unsupported input creating no Worker, per-case timeout naming the index, a function that throws on some inputs, result has no `evidence`
+    - Task notes:
+      - Case independence (Requirement 10 criterion 5, Property 8) holds because each case decodes its own copy of the input. The two contexts live for the whole run, as the design states, so a legacy function that keeps state in module-level variables can still return a value that depends on earlier cases. The property test uses a function that mutates its input and records what it saw, but whose return value does not read that record. Criterion 5 needs the words "for functions that keep no state between calls", or the design needs a fresh pair of contexts per case.
+      - A run whose time budget ends while the Trusted_Scripts are still being evaluated (seen on a busy host with a 500 ms limit) is reported as `SANDBOX_TIMEOUT` with side `unknown`.
+      - The `vm` timer can fire a fraction of a millisecond before the measured limit. The bootstrap allows a tolerance of 5 percent of the limit (at least 2 ms) when it recognizes a timeout by elapsed time.
     - _Requirements: 10.1 to 10.6_
 
-- [ ] 12. The `verifyLive` facade
-  - [ ] 12.1 Write `src/live.ts` and `src/index.ts`
+- [x] 12. The `verifyLive` facade
+  - [x] 12.1 Write `src/live.ts` and `src/index.ts`
     - `verifyLive(request, gate)`: acquire, map denial to `LIVE_EXECUTION_DENIED` with `executor: 'none'`, route `in-process` to the Verifier's `verifyTestCode({ origin: 'sample' })`, route `sandbox` to `runSandboxedVerification`, release the Lease in `finally`, return `SANDBOX_UNAVAILABLE` when the worker files cannot be loaded, never fall back to in-process for `user`, one `try/catch` returning `INTERNAL_ERROR`. Export only the public API and types
     - _Requirements: 2.1, 2.4, 3.10, 3.13, 3.14_
-  - [ ] 12.2 Write facade tests
+  - [x] 12.2 Write facade tests
     - A denied request creates no Worker and evaluates no code (use a legacy source with a syntax error and assert no `LEGACY_LOAD_ERROR`); the Lease is released after success, timeout, crash, and internal error; a missing worker file gives `SANDBOX_UNAVAILABLE` and the in-process executor is not called; `sample` origin goes in-process and `user` origin never does
     - _Requirements: 3.10, 3.13, 3.14_
 

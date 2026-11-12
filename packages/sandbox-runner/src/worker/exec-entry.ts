@@ -79,7 +79,16 @@ function createContext(): Context {
 /** Evaluates Trusted_Script fragments inside one function body, with CONFIG as a literal. */
 function runTrusted(context: Context, fragments: string[], config: Record<string, string | number | boolean>): void {
   const source = `(function (CONFIG) { 'use strict';\n${fragments.join('\n')}\n})(${JSON.stringify(config)});`;
-  vm.runInContext(source, context, { timeout: remaining() });
+  // No untrusted code has run in this context yet, so the only expected failure is the time budget
+  // running out, for example on a busy host.
+  const result = evaluate(context, source, remaining());
+  if (!result.ok) {
+    finish(
+      result.kind === 'timeout'
+        ? errorText('SANDBOX_TIMEOUT', 'The sandbox setup did not finish within the time limit (side: unknown).')
+        : errorText('SANDBOX_CRASH', 'The sandbox setup could not be completed.'),
+    );
+  }
 }
 
 type Evaluation = { ok: true; value: unknown } | { ok: false; kind: 'timeout' } | { ok: false; kind: 'threw'; thrown: unknown };
@@ -93,7 +102,10 @@ function evaluate(context: Context, source: string, timeoutMs: number): Evaluati
   try {
     return { ok: true, value: vm.runInContext(source, context, { timeout: timeoutMs }) };
   } catch (thrown) {
-    if (performance.now() - began >= timeoutMs) return { ok: false, kind: 'timeout' };
+    // The vm timer can fire a fraction of a millisecond before the measured limit, so a small
+    // tolerance is allowed. A throw that close to the limit is reported as a timeout, which is harmless.
+    const tolerance = Math.max(2, timeoutMs * 0.05);
+    if (performance.now() - began >= timeoutMs - tolerance) return { ok: false, kind: 'timeout' };
     return { ok: false, kind: 'threw', thrown };
   }
 }
