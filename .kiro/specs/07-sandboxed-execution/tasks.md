@@ -182,19 +182,24 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
       - Found while writing the corpus: the Compile_Worker used the caller's `maxExternalMemoryMb`. The compiler's own strings count as external memory, so a 16 MB limit made every compile fail with `SANDBOX_OUT_OF_MEMORY`. The compile stage now has its own fixed limit of 1,024 MB.
     - _Requirements: 2.4, 2.5, 2.7, 2.8, 4.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.6, 12.2, 12.3, 12.4, 12.5_
 
-- [ ] 14. README, threat model, and wording checks
-  - [ ] 14.1 Write `packages/sandbox-runner/README.md`
+- [x] 14. README, threat model, and wording checks
+  - [x] 14.1 Write `packages/sandbox-runner/README.md`
     - Sections: Overview (defense in depth, not an absolute claim), Usage (`verifyLive`, property mode, cases mode, one example each with `ok`/error handling), Gate and defaults (user execution off, name of the `userExecutionEnabled` field, anonymous denial, per-process concurrency limits), Limits table with defaults and ranges, Supported and rejected values (cycles, shared references, functions, symbols), Error codes, Threat_Model (assets, attacker, layers, not covered, future hardening, same-process warning, verdict-integrity limit), Escape classes the tests do not cover, Verified facts and Open Items pointer
     - _Requirements: 3.12, 7.10, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 12.7_
-  - [ ] 14.2 Write the README and wording tests
+  - [x] 14.2 Write the README and wording tests
     - The README contains each required section and each required uncovered item; states that user execution is off by default and names the config field; states the per-process limit; contains no Forbidden_Phrase and no absolute security claim (a fixed word list including "secure", "safe", "unbreakable", "impenetrable" is checked only outside negations or quotations, so keep the list short and review hits by hand); no source file, message template, or fixture contains a Forbidden_Phrase except the sanitizer test data
     - _Requirements: 6.8, 11.1 to 11.6_
 
-- [ ] 15. Final checkpoint
+- [x] 15. Final checkpoint
   - Run `pnpm lint`, `pnpm build`, and `pnpm test` from the repository root and confirm exit code 0 for all three. Confirm the package suite finishes in less than 120 seconds.
   - Re-read Requirements 1 to 12 and confirm every criterion maps to a completed task or test; list any criterion that could not be verified.
   - Confirm with `git status` that no file outside `packages/sandbox-runner/` changed, apart from the additive export of task 1.3 and the lockfile, and that `.kiro/specs/05-llm-pipeline-api/` and `.kiro/specs/06-resurrection-ui/` are untouched.
   - Remind the user of the manual steps: decide the Gate defaults (Open Items D1 to D4); the kill switch is `LAZARUS_SANDBOX_KILL_SWITCH`, read by `08-live-verification-api`, and keep `userExecutionEnabled` off until the hardening in the design is in place.
+  - Task notes (Windows, Node.js v26.13.0, pnpm 12.18.0):
+    - `pnpm lint` exits with code 0 (5 tasks). `pnpm build` exits with code 0 (4 tasks).
+    - `pnpm test`: every workspace package passes (7 Turborepo tasks; `@lazarus/sandbox-runner` 253 tests in about 60 seconds, `@lazarus/pbt-verifier` 216 tests unchanged). The root run exits with code 1 because of one test outside this spec, `db/tests/migration-runner.test.ts` R6.1. That test starts `pnpm` with a PATH made of a temporary directory, the directory of the Node.js binary, and the system directory. On this machine `pnpm` was installed with `npm install -g` (Node.js 26 ships no Corepack), so it is in the npm global directory and the test cannot find it. The test fails the same way with the `pnpm-workspace.yaml` of `develop`.
+    - Files changed outside `packages/sandbox-runner/`: the additive export of task 1.3 (`packages/pbt-verifier/package.json`, `src/shared.ts`, and the extraction in `src/sandbox/modern-loader.ts`), `pnpm-lock.yaml`, `pnpm-workspace.yaml` (see task 1.2), and this file. Nothing under `.kiro/specs/05-llm-pipeline-api/`, `.kiro/specs/06-resurrection-ui/`, `apps/web`, or `db/` changed.
+    - Criteria that are met with a difference from their wording, for the user to review: Requirement 5 criterion 6 (the watchdog reads the Worker's heap statistics, not the host value it names); Requirement 6 criterion 3 (a dynamic `import()` seen during the check is reported without one side, because the rejection arrives after the call); Requirement 7 criterion 5 against the design table (the markers are `function` and `symbol`, as the requirement says); Requirement 10 criterion 5 (holds for functions that keep no state between calls); Requirement 11 criterion 3 names `05-llm-pipeline-api` as the owner of the quota, while the design names `08-live-verification-api` (the README follows the design). `design.md` and `requirements.md` were not edited.
   - _Requirements: 1.4, 1.5, 12.1_
 
 ## Notes

@@ -145,7 +145,7 @@ function checkForbidden(side: LoadedSide, label: string): void {
   }
 }
 
-/** A syntax error is raised by the engine in this realm, so its name and message are safe to read. */
+/** A syntax error is raised by the engine in this realm, so reading its name and message runs no untrusted code. */
 function syntaxDetail(source: string, filename: string): string | null {
   try {
     new vm.Script(source, { filename });
@@ -182,7 +182,7 @@ async function loadSide(side: Side, code: string): Promise<LoadedSide> {
   }
   await checkDynamicImport(side);
 
-  // `entryName` was validated as an identifier on the host, so it is safe inside script text.
+  // `entryName` was validated as an identifier on the host, so it can be placed in script text as it is.
   const lookup =
     side === 'legacy'
       ? `typeof ${entryName} === "function" ? ${entryName} : undefined`
