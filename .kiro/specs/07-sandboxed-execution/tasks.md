@@ -166,14 +166,20 @@ This plan builds `packages/sandbox-runner` (`@lazarus/sandbox-runner`) as descri
     - A denied request creates no Worker and evaluates no code (use a legacy source with a syntax error and assert no `LEGACY_LOAD_ERROR`); the Lease is released after success, timeout, crash, and internal error; a missing worker file gives `SANDBOX_UNAVAILABLE` and the in-process executor is not called; `sample` origin goes in-process and `user` origin never does
     - _Requirements: 3.10, 3.13, 3.14_
 
-- [ ] 13. Adversarial tests
-  - [ ] 13.1 Write the hostile corpus `test/corpus/hostile.ts`
+- [x] 13. Adversarial tests
+  - [x] 13.1 Write the hostile corpus `test/corpus/hostile.ts`
     - Entries H1 to H23 from the design, each with its role (legacy, modern, test), expected result for `allowDynamicCode` false and true, and a comment block that lists the escape classes the corpus does not cover
     - _Requirements: 12.2, 12.7_
-  - [ ] 13.2 Write the adversarial tests
+  - [x] 13.2 Write the adversarial tests
     - For every entry and setting: assert the expected result code, that the call returns within `wallClockTimeoutMs` plus the kill grace plus a margin, that the live-Worker counter returns to its start value, and that the Lease is released; around each run compare the host `process.env` snapshot, `Object.prototype` keys, and `Object.keys(globalThis)` before and after, and check that a 250 ms timer fires on time
     - Property test (design Property 9, termination and cleanup) sampling corpus entries with `fc.constantFrom`
     - Property test (design Property 7, result hygiene) over arbitrary option objects and corpus entries: JSON-serializable, no stack trace or host path pattern, no Forbidden_Phrase, `message` at most 500 characters
+    - Task notes (Windows, Node.js v26.13.0), where a measured result differs from the table in `design.md`:
+      - H4: a promise callback that loops is interrupted when it is queued at load time or by an async property. When the Entry_Function queues it, the callback never runs, because the microtask queue of that context is not drained again; the run ends with a normal verdict.
+      - H7: `new ArrayBuffer(2 ** 40)` ended in `SANDBOX_OUT_OF_MEMORY` on this machine, not in a `RangeError` outcome. The corpus accepts both.
+      - H19: every stack overflow takes a few milliseconds, so 200 calls do not fit in a 400 ms limit and end in `SANDBOX_TIMEOUT`. With a larger limit both sides throw `RangeError` and the result is `PASSED`, as the table says.
+      - H22: replacing `fc.check` has no effect, because the driver captured it first. A property that never compares the two functions still passes; that is the documented limit on verdict integrity.
+      - Found while writing the corpus: the Compile_Worker used the caller's `maxExternalMemoryMb`. The compiler's own strings count as external memory, so a 16 MB limit made every compile fail with `SANDBOX_OUT_OF_MEMORY`. The compile stage now has its own fixed limit of 1,024 MB.
     - _Requirements: 2.4, 2.5, 2.7, 2.8, 4.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.6, 12.2, 12.3, 12.4, 12.5_
 
 - [ ] 14. README, threat model, and wording checks
