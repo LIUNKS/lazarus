@@ -7,7 +7,8 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" }
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" },
+    "./shared": { "types": "./dist/shared.d.ts", "import": "./dist/shared.js", "default": "./dist/shared.js" }
   },
   "files": ["dist", "README.md"],
   "scripts": {
