@@ -30,6 +30,7 @@ describe('verification gate', () => {
     expect(result).toMatchObject({ status: 'ERROR', code: 'LIVE_EXECUTION_DENIED', reason: 'USER_EXECUTION_DISABLED', executor: 'none' });
     // The same per-process Gate is returned on every call.
     expect(getVerificationGate()).toBe(getVerificationGate());
+    expect(await getVerificationGate()).toBe(await getVerificationGate());
   });
 
   it('R6.4 an anonymous caller and a non-owner are denied before any code is read (Requirement 6)', async () => {
@@ -40,6 +41,11 @@ describe('verification gate', () => {
       reason: 'NOT_OWNER',
       executor: 'none',
     });
+  });
+
+  it('R6.7 a Sandbox_Runner that cannot be loaded gives SANDBOX_UNAVAILABLE and no in-process run (Requirement 6)', async () => {
+    const port = createSandboxPort(Promise.reject(new Error('the package could not be loaded')));
+    expect(await port.run(broken())).toMatchObject({ status: 'ERROR', code: 'SANDBOX_UNAVAILABLE', executor: 'none' });
   });
 
   it('R6.6 a second concurrent run of the same user is denied with USER_CONCURRENCY_LIMIT (Requirement 6)', async () => {

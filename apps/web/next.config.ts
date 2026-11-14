@@ -27,7 +27,13 @@ const config: NextConfig = {
   // (serverExternalPackages already lists `typescript` by default). lib.dom is deliberately not included.
   outputFileTracingIncludes: {
     '/api/reincarnate': ['./node_modules/typescript/lib/lib.es*.d.ts', './node_modules/typescript/lib/lib.decorators*.d.ts'],
+    // POST /api/verify (08-live-verification-api): the Sandbox_Runner starts Workers from files in its dist/worker/
+    // directory, found at run time through import.meta.url, which file tracing cannot see.
+    '/api/verify': ['./node_modules/@lazarus/sandbox-runner/dist/**/*.js'],
   },
+  // The Sandbox_Runner locates its worker files relative to its own module, so it must run from node_modules as
+  // built, not bundled (a bundler cannot resolve the worker directory URL).
+  serverExternalPackages: ['@lazarus/sandbox-runner'],
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

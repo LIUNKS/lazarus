@@ -1,6 +1,7 @@
 // Static isolation checks over the source tree (Requirements 2, 4, 13, and 17).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 
 const SRC = path.resolve(import.meta.dirname, '../src');
@@ -128,10 +129,104 @@ describe('R17 scope (amended by 05-llm-pipeline-api)', () => {
     }
   });
 
-  it('has no Route Handler folder under app/api other than scan, seance, and reincarnate', () => {
+  it('has no Route Handler folder under app/api other than scan, seance, reincarnate, and verify (amended by 08-live-verification-api)', () => {
     const apiDir = path.join(SRC, 'app', 'api');
     const entries = existsSync(apiDir) ? readdirSync(apiDir) : [];
-    const allowed = new Set(['scan', 'seance', 'reincarnate']);
+    const allowed = new Set(['scan', 'seance', 'reincarnate', 'verify']);
     for (const entry of entries) expect(allowed.has(entry), `unexpected app/api/${entry}`).toBe(true);
+  });
+});
+
+describe('08-live-verification-api boundaries (Requirements 1, 11, and 12)', () => {
+  const VERIFICATION_DIR = path.join(SRC, 'lib', 'verification') + path.sep;
+  const ENV_SERVER = path.join(SRC, 'lib', 'env-server.ts');
+  const SANDBOX_FILE = path.join(SRC, 'lib', 'verification', 'sandbox.ts');
+  const ROUTE_FILE = path.join(SRC, 'app', 'api', 'verify', 'route.ts');
+  // Pure modules import nothing from the framework and read no environment variable, so they need no server-only import.
+  const PURE = new Set(['classify.ts', 'errors.ts', 'flags.ts', 'limits.ts', 'present.ts'].map((name) => VERIFICATION_DIR + name));
+  const verificationFiles = productionFiles.filter((file) => file.startsWith(VERIFICATION_DIR));
+  const verificationApi = [...verificationFiles, ENV_SERVER, ROUTE_FILE];
+  const rel = (file: string) => path.relative(SRC, file).replaceAll('\\', '/');
+  const parse = (file: string) => ts.createSourceFile(file, read(file), ts.ScriptTarget.ES2022, true, ts.ScriptKind.TS);
+
+  function nodesOf(file: string, predicate: (node: ts.Node) => boolean): ts.Node[] {
+    const found: ts.Node[] = [];
+    const visit = (node: ts.Node) => {
+      if (predicate(node)) found.push(node);
+      ts.forEachChild(node, visit);
+    };
+    visit(parse(file));
+    return found;
+  }
+
+  // Static and dynamic import specifiers, read with the parser so a comment never counts.
+  function specifiersOf(file: string): string[] {
+    const found: string[] = [];
+    for (const node of nodesOf(file, () => true)) {
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) found.push(node.moduleSpecifier.text);
+      if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments[0] && ts.isStringLiteral(node.arguments[0])) found.push(node.arguments[0].text);
+    }
+    return found;
+  }
+
+  it('R1.3 starts every module of lib/verification and env-server.ts with import server-only, unless the module is pure (Requirement 1)', () => {
+    expect(verificationFiles.length).toBeGreaterThanOrEqual(12);
+    for (const file of [...verificationFiles, ENV_SERVER]) {
+      const first = parse(file).statements[0];
+      const startsServerOnly = first !== undefined && ts.isImportDeclaration(first) && ts.isStringLiteral(first.moduleSpecifier) && first.moduleSpecifier.text === 'server-only';
+      if (PURE.has(file)) {
+        expect(startsServerOnly, `${rel(file)} is pure`).toBe(false);
+        expect(read(file).includes('process.env'), `${rel(file)} reads process.env`).toBe(false);
+        for (const specifier of specifiersOf(file)) {
+          expect(/^(?:next|next\/.*|server-only|@supabase\/.*|@lazarus\/.*)$/.test(specifier), `${rel(file)} imports ${specifier}`).toBe(false);
+        }
+      } else {
+        expect(startsServerOnly, `${rel(file)} starts with import 'server-only'`).toBe(true);
+      }
+    }
+  });
+
+  it('R1.3 imports @lazarus/sandbox-runner only in lib/verification/sandbox.ts (Requirement 1)', () => {
+    for (const file of productionFiles) {
+      const imports = specifiersOf(file).some((specifier) => specifier === '@lazarus/sandbox-runner' || specifier.startsWith('@lazarus/sandbox-runner/'));
+      expect(imports, `${rel(file)} imports @lazarus/sandbox-runner`).toBe(file === SANDBOX_FILE);
+    }
+  });
+
+  it('R1.4 mentions LAZARUS_SANDBOX_KILL_SWITCH only in lib/env-server.ts, and the Verification_API never names the service role key (Requirement 1)', () => {
+    for (const file of productionFiles) {
+      expect(read(file).includes('LAZARUS_SANDBOX_KILL_SWITCH'), `${rel(file)} mentions the kill switch`).toBe(file === ENV_SERVER);
+    }
+    for (const file of verificationApi) expect(read(file).includes('SUPABASE_SERVICE_ROLE_KEY'), rel(file)).toBe(false);
+  });
+
+  it('R1.5 reaches no module of lib/verification and not env-server.ts from a Client Component (Requirement 1)', () => {
+    for (const entry of productionFiles.filter((file) => isClient(read(file)))) {
+      for (const file of reachableFrom(entry)) {
+        expect(file.startsWith(VERIFICATION_DIR) || file === ENV_SERVER, `${rel(entry)} reaches ${rel(file)}`).toBe(false);
+      }
+    }
+  });
+
+  it('R1.7 R11.10 imports no verifier, vm, or child process, calls no eval or Function constructor, and has no explicit any (Requirements 1 and 11)', () => {
+    for (const file of verificationApi) {
+      for (const specifier of specifiersOf(file)) {
+        expect(/^(?:@lazarus\/pbt-verifier|node:vm|vm|node:child_process|child_process)$/.test(specifier), `${rel(file)} imports ${specifier}`).toBe(false);
+      }
+      const evaluates = nodesOf(
+        file,
+        (node) => (ts.isCallExpression(node) || ts.isNewExpression(node)) && ts.isIdentifier(node.expression) && (node.expression.text === 'eval' || node.expression.text === 'Function'),
+      );
+      expect(evaluates.length, `${rel(file)} evaluates code`).toBe(0);
+      expect(nodesOf(file, (node) => node.kind === ts.SyntaxKind.AnyKeyword).length, `${rel(file)} uses any`).toBe(0);
+    }
+  });
+
+  it('R1.8 keeps @lazarus/pbt-verifier out of apps/web/package.json (Requirement 1)', () => {
+    const pkg = JSON.parse(readFileSync(path.resolve(SRC, '..', 'package.json'), 'utf8')) as Record<string, Record<string, string> | undefined>;
+    for (const section of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+      expect(Object.keys(pkg[section] ?? {}), section).not.toContain('@lazarus/pbt-verifier');
+    }
+    expect(pkg['dependencies']?.['@lazarus/sandbox-runner']).toBe('workspace:*');
   });
 });
