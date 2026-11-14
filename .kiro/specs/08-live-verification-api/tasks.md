@@ -20,57 +20,59 @@ This plan implements `POST /api/verify` in `apps/web` and the code around it, as
 
 ## Tasks
 
-- [ ] 1. Dependency, environment documentation, and test guards
-  - [ ] 1.1 Add `@lazarus/sandbox-runner` to `apps/web`
+- [x] 1. Dependency, environment documentation, and test guards
+  - [x] 1.1 Add `@lazarus/sandbox-runner` to `apps/web`
     - Confirm that the preconditions hold. Add `@lazarus/sandbox-runner@workspace:*` under `dependencies` in `apps/web/package.json`. Do not add `@lazarus/pbt-verifier` to any section. Run `pnpm install`, then `pnpm --filter @lazarus/sandbox-runner build`, and confirm that `createLiveExecutionGate`, `verifyLive`, `LiveRequest`, and `SandboxResult` import in `apps/web`. Check in the package README and type declarations that the names and shapes match the design (`LiveRequest` fields, `GateConfig`, the `reason` of `LIVE_EXECUTION_DENIED`).
     - Confirm that `pnpm build` at the repository root builds `@lazarus/sandbox-runner` before `@lazarus/web` (the workspace dependency makes Turborepo's `^build` cover it). If not, add the dependency edge in `turbo.json` only if that is the sole way, and record it in the task notes.
     - _Requirements: 1.1, 12.5_
-  - [ ] 1.2 Document the kill switch in `.env.example`
+  - [x] 1.2 Document the kill switch in `.env.example`
     - Verify the entry (the cross-spec consistency pass already added it; add it only if it is missing): a comment line directly above `LAZARUS_SANDBOX_KILL_SWITCH` that states its purpose (server-only emergency stop for live verification of user code) and its accepted values (`1` or `true` engages it; unset, `0`, or `false` leaves it off; any other value is treated as engaged), and the entry itself commented out with a leading `#` and a placeholder value of `0`. Do not touch any other line (another change may edit this file; re-read it immediately before editing). Add no `NEXT_PUBLIC_` variant.
     - _Requirements: 4.8, 12.5_
-  - [ ] 1.3 Extend the Vitest guards for the kill switch
+  - [x] 1.3 Extend the Vitest guards for the kill switch
     - In `apps/web/test/setup/guards.ts` (from 05), add `LAZARUS_SANDBOX_KILL_SWITCH` to the set of variable names whose read fails a test unless the test set it explicitly. Keep every existing guard. Run the existing `apps/web` suite and confirm it stays green.
+    - Task notes: Turborepo builds `@lazarus/sandbox-runner` before `@lazarus/web` through the workspace dependency (checked with `turbo run build --filter=@lazarus/web --dry-run`), so `turbo.json` is unchanged. The `.env.example` entry already existed and was left as it is. The guard wraps `process.env` in a Proxy without a `set` trap, so Node.js rejects a second `vi.stubEnv` of the same variable inside one test; the tests of this spec stub each variable once per test.
     - _Requirements: 11.13, 12.4_
 
-- [ ] 2. Pure foundation modules
-  - [ ] 2.1 Create `limits.ts` and `flags.ts` under `apps/web/src/lib/verification/`
+- [x] 2. Pure foundation modules
+  - [x] 2.1 Create `limits.ts` and `flags.ts` under `apps/web/src/lib/verification/`
     - `limits.ts` (pure): `VERIFICATION_LIMITS` exactly as in the design (`userQuota` 10 per 3,600 s, `globalQuota` 100 per 86,400 s, `numRuns` 1,000, `quotaCallTimeoutMs` 5,000, `busyRetryAfterSeconds` 15, `perUserConcurrency` 1, `globalConcurrency` 4).
     - `flags.ts` (pure): `export const USER_EXECUTION_ENABLED = false;` with the doc comment of the design (shipped `false`; flipping is a reviewed change made after the hardening in the 07 Threat_Model is judged adequate). The file reads no environment variable.
     - _Requirements: 4.1, 5.10, 6.2, 6.6_
-  - [ ] 2.2 Write tests for the constants and the flag
+  - [x] 2.2 Write tests for the constants and the flag
     - File: `apps/web/src/lib/verification/limits.test.ts`. Assert the quota values and windows, that both windows are at most 86,400 s, that `numRuns` is an integer from 100 to 1,000, and that the busy retry-after is an integer from 1 to 86,400. In the same file assert that `USER_EXECUTION_ENABLED` equals a local constant `EXPECTED_USER_EXECUTION_ENABLED = false` (flipping the flag therefore needs an edit of both files, which a reviewer sees).
     - _Requirements: 4.1, 5.10, 6.2, 11.10_
-  - [ ] 2.3 Create `apps/web/src/lib/env-server.ts`
+  - [x] 2.3 Create `apps/web/src/lib/env-server.ts`
     - Start with `import 'server-only'`. Export `KillSwitchState`, the pure `parseKillSwitch(raw)` (trim, lower-case; `1`/`true` gives `engaged`; `undefined`, empty, `0`, `false` gives `not-engaged`; anything else `invalid`), `readKillSwitch()` (the only place in `apps/web/src/` that references `process.env.LAZARUS_SANDBOX_KILL_SWITCH`), `ServerConfigProblem`, and `serverConfigProblems()` which returns `{ variable, reason: 'invalid' }` for an invalid value and never contains the value. Do not change `lib/env.ts`.
     - _Requirements: 1.5, 4.2, 4.3_
-  - [ ] 2.4 Create `execution.ts` and write the kill switch property test
+  - [x] 2.4 Create `execution.ts` and write the kill switch property test
     - `execution.ts`: the pure `decideExecution(flag, state)` returning `{ enabled: true }` only for `(true, 'not-engaged')` and otherwise `{ enabled: false, reason }` with `flag-off`, `kill-switch`, or `kill-switch-invalid`; and `effectiveExecution()` which calls it with `USER_EXECUTION_ENABLED` and `readKillSwitch()`.
     - **Property 4: Kill switch and effective flag**
     - Files: `apps/web/src/lib/env-server.test.ts` and `apps/web/src/lib/verification/execution.test.ts`, `numRuns` 200. Generate strings with padding, mixed case, and arbitrary content; assert the three states against an oracle written in the test; assert the full truth table of `decideExecution`; assert that `invalid` never enables execution and that no problem entry or reason contains the supplied value.
     - **Validates: Requirements 4.2, 4.3, 4.4, 4.6, 11.5**
-  - [ ] 2.5 Create `errors.ts`
+  - [x] 2.5 Create `errors.ts`
     - Pure. `VERIFY_ERROR_CODES` (the 18 codes of Requirement 9 criterion 1 with their statuses), `VerifyError` (code plus typed numeric details such as `retryAfterSeconds` and `limit`, and a short constant `detail` for the log), the message table of the design (messages of shared codes imported from 05's table; two verification-specific `RATE_LIMITED` texts; the five new messages), and `verifyErrorResponse(error)` built on `jsonResponse` of 05 (headers `Cache-Control: private, no-store` and JSON content type; `Retry-After` only for `RATE_LIMITED` and `VERIFICATION_BUSY`, clamped to an integer from 1 to 86,400). It reads nothing from a caught exception except the typed fields.
     - _Requirements: 2.3, 5.5, 5.6, 6.6, 9.1, 9.2, 9.3, 9.4_
-  - [ ] 2.6 Write the property test for the envelope
+  - [x] 2.6 Write the property test for the envelope
     - **Property 9: Envelope and non-leakage** (pure part)
     - File: `apps/web/src/lib/verification/errors.test.ts`, `numRuns` 200. For every code and arbitrary retry-after, line, and detail values: status equals the table; body has exactly the keys `ok`, `error.code`, `error.message`; message is the fixed text, 1 to 200 ASCII characters, no Forbidden_Phrase, no stack-like text, path, or SQLSTATE; `Retry-After` appears only for the two 429 codes. Include an example asserting that the set of codes equals the list in Requirement 9 criterion 1 and that the five new codes are present.
     - **Validates: Requirements 9.1, 9.2, 9.3, 9.4**
-  - [ ] 2.7 Create `classify.ts`
+  - [x] 2.7 Create `classify.ts`
     - Pure and total: `classifySandboxResult(result)` returning the `Classification` of the design table, including the value checks of Requirement 7 criterion 3 (`PASSED`: integer `totalRuns` 100 to 1,000; `FAILED`: integer 1 to 1,000; `executionTimeMs` an integer of at least 0; a failed check gives `internal`). Unknown codes and malformed shapes give `internal`. The `detail` is a short constant (the Sandbox_Runner code or the denial reason), never the `message`.
     - _Requirements: 6.6, 6.7, 7.1, 7.2, 7.3, 7.4_
-  - [ ] 2.8 Write the property test for the classification
+  - [x] 2.8 Write the property test for the classification
     - **Property 5: Result classification** (pure part)
     - File: `apps/web/src/lib/verification/classify.test.ts`, `numRuns` 200. Generate results of every status and code with arbitrary `message`, `reason`, counts (including out-of-range and non-integer), and extra fields; assert totality (no throw), that `conclusive` appears only for `PASSED`/`FAILED` with valid values, and the exact mapping table. Add one example per Sandbox_Runner code of Requirement 7 criterion 4, per denial reason of Requirement 6 criterion 6, and for `SANDBOX_UNAVAILABLE`.
     - **Validates: Requirements 6.6, 6.7, 7.1, 7.2, 7.3, 7.4**
-  - [ ] 2.9 Create `present.ts`
+    - Task note: `classifySandboxResult` takes `unknown`, not the `SandboxResult` type, because Requirement 1 criterion 3 allows an import statement of `@lazarus/sandbox-runner` only in `sandbox.ts` (a type-only import is still an import statement), and because the route must not trust the shape of a result.
+  - [x] 2.9 Create `present.ts`
     - Pure. `verifyBody(source, row, corpse)` returning the success shape of Requirement 2 criterion 4 from a stored row, using `verificationOf` and `evidenceOf` of 05 for `verification` and `evidence`. It takes no Sandbox_Result.
     - _Requirements: 2.4, 2.5, 2.6, 2.7, 10.1_
-  - [ ] 2.10 Write the property test for the response shape
+  - [x] 2.10 Write the property test for the response shape
     - **Property 7: Response shape and wording**
     - File: `apps/web/src/lib/verification/present.test.ts`, `numRuns` 200. Rows with `pbt_passed` true/false/NULL and `total_runs` around 0, 100, 999, 1,000, and large values; assert the exact key sets, the `verification` mapping, the evidence string and its comma formatting, `null` evidence otherwise, the whole-word restrictions of Requirement 10 criterion 2 over all string values, and no Forbidden_Phrase.
     - **Validates: Requirements 2.4, 2.5, 2.6, 2.7, 10.1, 10.2**
 
-- [ ] 3. Checkpoint - Pure modules
+- [x] 3. Checkpoint - Pure modules
   - Run `pnpm --filter @lazarus/web test`, `pnpm --filter @lazarus/web lint`, and confirm exit code 0 for both. Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 1.8, 11.1_
 

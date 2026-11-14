@@ -12,6 +12,8 @@ const GUARDED_ENV_NAMES: ReadonlySet<string> = new Set([
   'LLM_MODEL',
   'GOOGLE_GENERATIVE_AI_API_KEY',
   'LLM_FALLBACK_MODEL',
+  // The live verification kill switch (Requirement 11 criterion 13 of 08).
+  'LAZARUS_SANDBOX_KILL_SWITCH',
 ]);
 
 function blocked(access: string): never {

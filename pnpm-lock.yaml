@@ -214,6 +214,9 @@ importers:
       '@lazarus/mcp-curse-scanner':
         specifier: workspace:*
         version: link:../../packages/mcp-curse-scanner
+      '@lazarus/sandbox-runner':
+        specifier: workspace:*
+        version: link:../../packages/sandbox-runner
       '@next/env':
         specifier: ^16.4.5
         version: 16.4.5
