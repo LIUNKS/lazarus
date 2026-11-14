@@ -180,7 +180,8 @@ dbDescribe('R18 migration V3: privileges and structure (Requirement 18)', () => 
       expect(rows.length).toBe(3);
       for (const row of rows) expect([row['seances'], row['reincarnations']]).toEqual([1, 1]);
       const history = await sandbox.admin('SELECT version FROM public.flyway_schema_history WHERE success ORDER BY installed_rank');
-      expect(history.map((h) => h['version'])).toEqual(['1', '2', '3']);
+      // Later migrations (V4 of 08-live-verification-api) may follow; V1 to V3 must be applied first, in order.
+      expect(history.map((h) => h['version']).slice(0, 3)).toEqual(['1', '2', '3']);
     });
   });
 
