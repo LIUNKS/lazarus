@@ -100,21 +100,24 @@ This plan implements `POST /api/verify` in `apps/web` and the code around it, as
     - **Validates: Requirements 7.6, 7.12, 8.7, 8.8, 8.9**
 
 - [ ] 5. Checkpoint - Database
+  - Status (not run): this machine has no Docker (which `pnpm test:db` uses to start the disposable Postgres) and no Flyway CLI, so the migration was not applied and the database-gated tests of tasks 4.3 to 4.6 were not executed. They compile, pass lint, and are skipped without `TEST_DATABASE_URL` (21 tests). `db/tests/config.test.ts`, which needs no database, passes with `V4` in the migration list. Tasks 4.1 to 4.6 stay unchecked until `pnpm test:db` runs green on a machine with Docker and Flyway.
+  - Change outside the allowed list of Requirement 12 criterion 5: `db/tests/llm-pipeline.test.ts` (05) R18.7 asserted that the applied versions are exactly `1`, `2`, `3`, so it would fail once `V4` is applied. It now asserts that the first three versions are `1`, `2`, `3`. It is one more test that asserts the exact migration list, which is what Requirement 8 criterion 12 asks to update.
   - Run `pnpm test:db` with `TEST_DATABASE_URL` set and confirm exit code 0, including the amended migration-list tests. Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 8.11, 8.12_
 
 - [ ] 6. Store, sandbox seam, and test doubles
-  - [ ] 6.1 Create `store.ts`
+  - [x] 6.1 Create `store.ts`
     - `VerificationStore`, `RecordInput`, `RecordResult`, and `createSupabaseVerificationStore(client)` as in the design: reads composed from `createSupabaseStore(client)` of 05; `reserveVerificationRun` calls `rpc('reserve_verification_run', ...)` with the constants of `limits.ts` as arguments and a 5,000 ms abort signal, reusing the verdict guard of 05's quota module (exactly one well-formed row, otherwise `QuotaUnavailable`); `recordVerification` calls `rpc('record_verification', ...)`, maps `was_updated` false to `{ wasUpdated: false }`, validates the returned row with runtime guards, and throws `StoreError` (safe detail only) on a database error or an unexpected shape. It creates no other client.
     - _Requirements: 1.4, 5.1, 5.7, 5.9, 5.10, 7.6_
-  - [ ] 6.2 Write the store tests against the chainable fake client
+  - [x] 6.2 Write the store tests against the chainable fake client
     - File: `apps/web/src/lib/verification/store.test.ts` using `lib/testing/fake-client.ts` (it already supports `rpc`). Assert the RPC names and argument objects (the quota limits come from `limits.ts`), the guard accepting only a well-formed allow or deny, the 5,000 ms timeout path giving `QuotaUnavailable`, `was_updated` true and false mapping, and that a database error body never appears in the thrown error.
     - _Requirements: 5.1, 5.7, 5.10, 7.6, 7.9_
-  - [ ] 6.3 Create `sandbox.ts` and `gate.ts`
+  - [x] 6.3 Create `sandbox.ts` and `gate.ts`
     - `sandbox.ts`: `SandboxPort` and `createSandboxPort(gate)` whose `run(request)` calls `verifyLive(request, gate)`. This is the only file in `apps/web/src/` that imports `@lazarus/sandbox-runner`.
     - `gate.ts`: `getVerificationGate()`, a per-process singleton built with `createLiveExecutionGate({ userExecutionEnabled: effectiveExecution().enabled, allowAnonymousSampleRuns: false, perUserConcurrency, globalConcurrency })` from `limits.ts`. The route never releases a Lease. Add a comment that the counters are per process.
     - _Requirements: 1.3, 4.6, 6.4, 6.5, 6.9_
-  - [ ] 6.4 Write the Gate configuration tests
+    - Task note: `sandbox.ts` also exports `createGate`, a thin wrapper of `createLiveExecutionGate`, so that `gate.ts` builds the Gate without an import statement of `@lazarus/sandbox-runner` (Requirement 1 criterion 3 allows one only in `sandbox.ts`).
+  - [x] 6.4 Write the Gate configuration tests
     - File: `apps/web/src/lib/verification/gate.test.ts`. With the real Sandbox_Runner: a Gate built with the flag off returns `LIVE_EXECUTION_DENIED` with reason `USER_EXECUTION_DISABLED` for a `user` origin request whose code strings contain a syntax error (so a result of `LEGACY_LOAD_ERROR` would reveal that the code was parsed), and creates no Worker; an anonymous caller is denied; a non-owner is denied; with the test-only Gate enabled and `perUserConcurrency` 1, a second concurrent request is denied with `USER_CONCURRENCY_LIMIT`. The production `getVerificationGate()` is asserted only in the flag-off configuration.
     - _Requirements: 4.6, 6.4, 6.5, 6.6_
   - [ ] 6.5 Create the test doubles
