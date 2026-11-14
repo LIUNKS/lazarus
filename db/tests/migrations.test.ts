@@ -57,7 +57,7 @@ dbDescribe('R7 and R8 Flyway migrations', () => {
     await withScratchDatabase(async (db) => {
       const result = db.flyway();
       expect(result.code, result.output).toBe(0);
-      expect(await history(db)).toHaveLength(2);
+      expect(await history(db)).toHaveLength(3);
     });
   });
 
@@ -82,7 +82,7 @@ dbDescribe('R7 and R8 Flyway migrations', () => {
 
         const changed = join(dir, 'V1__create_lazarus_schema.sql');
         writeFileSync(changed, `${readFileSync(changed, 'utf8')}\n-- tampered after being applied\n`);
-        writeFileSync(join(dir, 'V3__pending_probe.sql'), 'CREATE TABLE public.suite_pending_probe (id int);\n');
+        writeFileSync(join(dir, 'V4__pending_probe.sql'), 'CREATE TABLE public.suite_pending_probe (id int);\n');
 
         const result = db.flyway({ args: [location] });
         expect(result.code).not.toBe(0);
@@ -98,17 +98,17 @@ dbDescribe('R7 and R8 Flyway migrations', () => {
     }
   });
 
-  it('R8.3 applies V1 before V2 on an empty database, records both in order, and exits with code 0', async () => {
+  it('R8.3 applies V1, V2, and V3 in order on an empty database, records all three, and exits with code 0', async () => {
     await withScratchDatabase(async (db) => {
       const result = runner(db);
       expect(result.code, result.output).toBe(0);
       const rows = await history(db);
-      expect(rows.map((r) => r.version)).toEqual(['1', '2']);
+      expect(rows.map((r) => r.version)).toEqual(['1', '2', '3']);
       expect(rows.every((r) => r.success)).toBe(true);
     });
   });
 
-  it('R8.4 applies only V2 when V1 is applied and leaves existing rows unchanged', async () => {
+  it('R8.4 applies only V2 and V3 when V1 is applied and leaves existing rows unchanged', async () => {
     await withScratchDatabase(async (db) => {
       expect(db.flyway({ args: ['-target=1'] }).code).toBe(0);
       expect((await history(db)).map((r) => r.version)).toEqual(['1']);
@@ -124,7 +124,7 @@ dbDescribe('R7 and R8 Flyway migrations', () => {
 
       const result = runner(db);
       expect(result.code, result.output).toBe(0);
-      expect((await history(db)).map((r) => r.version)).toEqual(['1', '2']);
+      expect((await history(db)).map((r) => r.version)).toEqual(['1', '2', '3']);
       const owned = await db.query('SELECT count(*)::int AS n FROM public.corpses WHERE user_id = $1', [userId]);
       expect(owned[0]?.['n']).toBe(1);
       // Only the seeded rows were added: removing them must reproduce the earlier snapshot.
@@ -133,7 +133,7 @@ dbDescribe('R7 and R8 Flyway migrations', () => {
     });
   });
 
-  it('R8.5 applies zero migrations and changes no row when both are already applied', async () => {
+  it('R8.5 applies zero migrations and changes no row when all migrations are already applied', async () => {
     await withScratchDatabase(async (db) => {
       expect(runner(db).code).toBe(0);
       const before = await snapshot(db);
