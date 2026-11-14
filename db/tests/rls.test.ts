@@ -47,6 +47,8 @@ const CHILD = {
 
 type ChildTable = keyof typeof CHILD;
 const CHILD_KEYS = Object.keys(CHILD) as ChildTable[];
+// Tables that hold at most one row per corpse since migration V3 (a unique index on corpse_id).
+const ONE_RESULT_PER_CORPSE: ReadonlySet<ChildTable> = new Set<ChildTable>(['seance_specs', 'reincarnations']);
 
 const ALL_ROWS_DIGEST = `
   SELECT md5(coalesce(string_agg(t, '|' ORDER BY t), '')) AS digest FROM (
@@ -306,11 +308,23 @@ dbDescribe('R14 child table policies', () => {
   it('R14.2 lets the owner select, insert, update, and delete child rows of their corpse', async () => {
     await inSandbox(async (sandbox) => {
       const a = world.a;
+      const update = (table: ChildTable) => `UPDATE public.${table} SET ${CHILD[table].set} WHERE corpse_id = $1`;
+      const remove = (table: ChildTable) => `DELETE FROM public.${table} WHERE corpse_id = $1`;
       for (const table of CHILD_KEYS) {
         expect(expectRows(await sandbox.as('authenticated', a.userId, `SELECT id FROM public.${table} WHERE corpse_id = $1`, [a.corpseId])).length).toBeGreaterThanOrEqual(1);
-        expectAffected(await sandbox.as('authenticated', a.userId, CHILD[table].insert, [a.corpseId]), 1);
-        expectAffected(await sandbox.as('authenticated', a.userId, `UPDATE public.${table} SET ${CHILD[table].set} WHERE corpse_id = $1`, [a.corpseId]), 2);
-        expectAffected(await sandbox.as('authenticated', a.userId, `DELETE FROM public.${table} WHERE corpse_id = $1`, [a.corpseId]), 2);
+        if (ONE_RESULT_PER_CORPSE.has(table)) {
+          // Migration V3 (05-llm-pipeline-api) allows one row per corpse in this table. The corpse already has its row,
+          // so a second insert is rejected by the unique index. The owner still holds all four permissions on a single row.
+          expectDenied(await sandbox.as('authenticated', a.userId, CHILD[table].insert, [a.corpseId]), '23505');
+          expectAffected(await sandbox.as('authenticated', a.userId, update(table), [a.corpseId]), 1);
+          expectAffected(await sandbox.as('authenticated', a.userId, remove(table), [a.corpseId]), 1);
+          expectAffected(await sandbox.as('authenticated', a.userId, CHILD[table].insert, [a.corpseId]), 1);
+          expectAffected(await sandbox.as('authenticated', a.userId, remove(table), [a.corpseId]), 1);
+        } else {
+          expectAffected(await sandbox.as('authenticated', a.userId, CHILD[table].insert, [a.corpseId]), 1);
+          expectAffected(await sandbox.as('authenticated', a.userId, update(table), [a.corpseId]), 2);
+          expectAffected(await sandbox.as('authenticated', a.userId, remove(table), [a.corpseId]), 2);
+        }
       }
     });
   });

@@ -202,9 +202,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@ai-sdk/google':
+        specifier: ^4.0.114
+        version: 4.0.119(zod@4.6.7)
+      '@ai-sdk/groq':
+        specifier: ^4.0.78
+        version: 4.0.82(zod@4.6.7)
       '@gsap/react':
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.1)(react@19.3.1)
+      '@lazarus/mcp-curse-scanner':
+        specifier: workspace:*
+        version: link:../../packages/mcp-curse-scanner
       '@next/env':
         specifier: ^16.4.5
         version: 16.4.5
@@ -217,6 +226,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.3.4
         version: 4.3.4
+      ai:
+        specifier: ^7.0.166
+        version: 7.0.171(zod@4.6.7)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -247,6 +259,9 @@ importers:
       react-dom:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
@@ -256,6 +271,12 @@ importers:
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: ^24.19.2
@@ -343,6 +364,34 @@ importers:
         version: 5.1.0(@types/node@24.19.2)(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0))
 
 packages:
+
+  '@ai-sdk/gateway@4.0.144':
+    resolution: {integrity: sha512-w8zzojJW8wEIh6E0dDMEEPUnZt+d1g1P1F5zbESJB3MKwGih58TWjmmKtaeAZf0ueZkyMD73VPbsqPufqjjWaQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/google@4.0.119':
+    resolution: {integrity: sha512-KrSg45P1ywNuaaZR7NuUw/ZrHFODy9tX9LKVaOcun1V8VwrKyAMPq5r2IRgDzUL73gIq/CAYvbJBDj99ezPJ6g==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/groq@4.0.82':
+    resolution: {integrity: sha512-cge8p/hK3GhSPMVV9Dam5rNp0lKOHpZvltLXaWsPE7MZ1FYnYkseWv27iYdvcP6D4OCQpfD8F1NIlNAtAOFyNg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider-utils@5.0.80':
+    resolution: {integrity: sha512-WJ/eiRiBUWbuIBX8v2+U4FssBFskNo4z9TnzEwqTtSQ56TF6H2g/sPkOq0SDMz9yY9u5uOT+tEq28CBUTWVNlA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/provider@4.0.38':
+    resolution: {integrity: sha512-GElz70UUCuDFFyD6m6aQJFgRY0HEABQzB5otzgkrisYaF5mnss7o0upAmbBTSD6KWiM9h7lZm1ls2c7xzHR8CA==}
+    engines: {node: '>=22'}
 
   '@alloc/quick-lru@5.3.0':
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
@@ -1729,6 +1778,9 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
   '@supabase/auth-js@2.119.0':
     resolution: {integrity: sha512-WI7KqJRxqZjm77PlRO/VfKretL4SG8g8stWfBmpyx9To+fFapZlSbXA8QkduoMvr72rRpIF24ZLrjktBrp+ZFA==}
     engines: {node: '>=22.0.0'}
@@ -2096,6 +2148,10 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@vercel/oidc@3.2.0':
+    resolution: {integrity: sha512-UycprH3T6n3jH0k44NHMa7pnFHGu/N05MjojYr+Mc6I7obkoLIJujSWwin1pCvdy/eOxrI/l3uDLQsmcrOb4ug==}
+    engines: {node: '>= 20'}
+
   '@vitest/mocker@5.1.0':
     resolution: {integrity: sha512-5umB9/jlWcqVS6fsrFmv5Gdnpu6wAUio/lEOwAmvB7v+lFo/IW2B9FhAD0p19GCULTgMzLCdUmuCDCnAzWgppQ==}
     peerDependencies:
@@ -2109,6 +2165,9 @@ packages:
 
   '@vitest/spy@5.1.0':
     resolution: {integrity: sha512-2DPO5OMHWKrBngC+fCmTQqemNF0gidRhp3lxbBmRhW+M1XJrfgPpqNqWVevXtn2f2ufD5ZaR1B6B641aAlcX5A==}
+
+  '@workflow/serde@4.1.0':
+    resolution: {integrity: sha512-pav4F2BoirECWR7Nf1TKt+2eETcBj7jj4cBefQ8VXQCA6NPkaKeLfj/zMgi+3zYV5ZIBT4GuUiphsj0/b9hPQQ==}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -2127,6 +2186,12 @@ packages:
     resolution: {integrity: sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw==}
     engines: {node: '>=0.4.0'}
     hasBin: true
+
+  ai@7.0.171:
+    resolution: {integrity: sha512-YGyMIMn7XZY1H1EwSGn0QItd8PeVXA6OOzq+bVugnsfCjgFmHjcBIGs8JgmTzblMAd0lFRAL2ng5r0ozq98l6g==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -2973,6 +3038,9 @@ packages:
   json-schema-typed@8.0.2:
     resolution: {integrity: sha512-fQhoXdcvc3V28x7C7BMs4P5+kNlgUURe2jmUT1T//oBRMDrqy1QPelJimwZGo7Hg9VPV3EQV5Bnq4hbFy2vetA==}
 
+  json-schema@0.4.0:
+    resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
+
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
 
@@ -3504,6 +3572,9 @@ packages:
     resolution: {integrity: sha512-xRXBn0pPqQTVQiC8wyQrKs2MOlX24zQ0POGaj0kultvoOCstBQM5yvOhAVSUwOMjQtTvsPWoNCHfPGwaaQJhTw==}
     engines: {node: '>= 18'}
 
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==}
+
   set-function-length@1.2.2:
     resolution: {integrity: sha512-pgRc4hJ4/sNjWCSS9AmnS40x3bNMDTknHgL5UaMBTMyJnU90EgWh1Rz+MC9eFu4BuN/UwZjKQuY/1v3rM7HMfg==}
     engines: {node: '>= 0.4'}
@@ -3896,6 +3967,37 @@ packages:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
+
+  '@ai-sdk/gateway@4.0.144(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.38
+      '@ai-sdk/provider-utils': 5.0.80(zod@4.6.7)
+      '@vercel/oidc': 3.2.0
+      zod: 4.6.7
+
+  '@ai-sdk/google@4.0.119(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.38
+      '@ai-sdk/provider-utils': 5.0.80(zod@4.6.7)
+      zod: 4.6.7
+
+  '@ai-sdk/groq@4.0.82(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.38
+      '@ai-sdk/provider-utils': 5.0.80(zod@4.6.7)
+      zod: 4.6.7
+
+  '@ai-sdk/provider-utils@5.0.80(zod@4.6.7)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.38
+      '@standard-schema/spec': 1.1.0
+      '@workflow/serde': 4.1.0
+      eventsource-parser: 3.1.1
+      zod: 4.6.7
+
+  '@ai-sdk/provider@4.0.38':
+    dependencies:
+      json-schema: 0.4.0
 
   '@alloc/quick-lru@5.3.0': {}
 
@@ -5177,6 +5279,8 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
+  '@standard-schema/spec@1.1.0': {}
+
   '@supabase/auth-js@2.119.0':
     dependencies:
       tslib: 2.8.1
@@ -5492,6 +5596,8 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.13.0':
     optional: true
 
+  '@vercel/oidc@3.2.0': {}
+
   '@vitest/mocker@5.1.0(vite@8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0))':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.31
@@ -5502,6 +5608,8 @@ snapshots:
       vite: 8.3.6(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)
 
   '@vitest/spy@5.1.0': {}
+
+  '@workflow/serde@4.1.0': {}
 
   accepts@2.0.0:
     dependencies:
@@ -5517,6 +5625,13 @@ snapshots:
       acorn: 8.19.0
 
   acorn@8.19.0: {}
+
+  ai@7.0.171(zod@4.6.7):
+    dependencies:
+      '@ai-sdk/gateway': 4.0.144(zod@4.6.7)
+      '@ai-sdk/provider': 4.0.38
+      '@ai-sdk/provider-utils': 5.0.80(zod@4.6.7)
+      zod: 4.6.7
 
   ajv-formats@3.0.1:
     dependencies:
@@ -6579,6 +6694,8 @@ snapshots:
 
   json-schema-typed@8.0.2: {}
 
+  json-schema@0.4.0: {}
+
   json-stable-stringify-without-jsonify@1.0.1: {}
 
   json5@1.0.2:
@@ -7165,6 +7282,8 @@ snapshots:
       send: 1.2.1
     transitivePeerDependencies:
       - supports-color
+
+  server-only@0.0.1: {}
 
   set-function-length@1.2.2:
     dependencies:

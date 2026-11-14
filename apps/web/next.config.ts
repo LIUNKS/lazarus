@@ -21,6 +21,13 @@ const config: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? '.next',
   // The built-output test builds with a copy of tsconfig.json so Next.js never rewrites the real one.
   typescript: { tsconfigPath: process.env.NEXT_TSCONFIG_PATH ?? 'tsconfig.json' },
+  // The static gate of POST /api/reincarnate type-checks generated code in memory and reads the ES library
+  // declaration files of the `typescript` package at run time. Next.js file tracing cannot see those reads,
+  // so the deployed output would miss them and every check would fail. The compiler itself stays external
+  // (serverExternalPackages already lists `typescript` by default). lib.dom is deliberately not included.
+  outputFileTracingIncludes: {
+    '/api/reincarnate': ['./node_modules/typescript/lib/lib.es*.d.ts', './node_modules/typescript/lib/lib.decorators*.d.ts'],
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
