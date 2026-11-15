@@ -18,6 +18,7 @@
     "@ai-sdk/groq": "^4.0.78",
     "@gsap/react": "^2.1.2",
     "@lazarus/mcp-curse-scanner": "workspace:*",
+    "@lazarus/sandbox-runner": "workspace:*",
     "@next/env": "^16.4.5",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",

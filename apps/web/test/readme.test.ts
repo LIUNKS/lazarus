@@ -8,7 +8,9 @@ import { LIMITS } from '../src/lib/pipeline/limits';
 
 const README = readFileSync(path.resolve(import.meta.dirname, '../README.md'), 'utf8').replaceAll('\r\n', '\n');
 const START = README.indexOf('\n## Pipeline API\n');
-const SECTION = START === -1 ? '' : README.slice(START);
+// The section ends at the next `## ` heading (08-live-verification-api appends `## Verification API` after it).
+const NEXT = START === -1 ? -1 : README.indexOf('\n## ', START + 1);
+const SECTION = START === -1 ? '' : README.slice(START, NEXT === -1 ? undefined : NEXT + 1);
 const TABLE = (SECTION.split('\n### Error codes\n')[1] ?? '').split('\n');
 
 describe('R21 README Pipeline API section (Requirement 21)', () => {

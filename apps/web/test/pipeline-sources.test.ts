@@ -108,9 +108,11 @@ describe('R1 module layout and the server-only boundary (Requirement 1)', () => 
     }
   });
 
-  it('R1.2 has no Route Handler folder under app/api other than scan, seance, and reincarnate (Requirement 1)', () => {
-    expect(readdirSync(API_DIR).sort()).toEqual(['reincarnate', 'scan', 'seance']);
-    expect(apiFiles.map(rel).sort()).toEqual(['app/api/reincarnate/route.ts', 'app/api/scan/route.ts', 'app/api/seance/route.ts']);
+  // Amended by 08-live-verification-api, which adds the verify route (its own checks are in isolation.test.ts and
+  // verification-boundaries.test.ts).
+  it('R1.2 has no Route Handler folder under app/api other than scan, seance, reincarnate, and verify (Requirement 1)', () => {
+    expect(readdirSync(API_DIR).sort()).toEqual(['reincarnate', 'scan', 'seance', 'verify']);
+    expect(apiFiles.map(rel).sort()).toEqual(['app/api/reincarnate/route.ts', 'app/api/scan/route.ts', 'app/api/seance/route.ts', 'app/api/verify/route.ts']);
   });
 
   it('R1.3 starts every non-pure module with import server-only, and keeps pure modules free of framework imports and process.env (Requirement 1)', () => {

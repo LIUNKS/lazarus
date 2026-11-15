@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ERROR_TABLE } from '@/lib/pipeline/errors';
 import { proxy } from './proxy';
 
-const PATHS = ['/api/scan', '/api/seance', '/api/reincarnate'];
+// '/api/verify' is added by 08-live-verification-api (Requirement 2 criterion 1 of 08).
+const PATHS = ['/api/scan', '/api/seance', '/api/reincarnate', '/api/verify'];
 const METHODS = ['GET', 'HEAD', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
 
 afterEach(() => {

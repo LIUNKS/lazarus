@@ -304,11 +304,12 @@ describe('R8 migration files', () => {
     for (const file of files()) expect(file).toMatch(/^V[1-9]\d*__[a-z0-9_]{1,100}\.sql$/);
   });
 
-  it('R8.2 the migrations are exactly V1, V2, and V3 (V3 is added by 05-llm-pipeline-api)', () => {
+  it('R8.2 the migrations are exactly V1, V2, V3, and V4 (V3 is added by 05-llm-pipeline-api, V4 by 08-live-verification-api)', () => {
     expect(files().sort()).toEqual([
       'V1__create_lazarus_schema.sql',
       'V2__seed_sample_corpses.sql',
       'V3__llm_pipeline_support.sql',
+      'V4__live_verification_support.sql',
     ]);
   });
 });

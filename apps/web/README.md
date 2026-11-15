@@ -228,3 +228,120 @@ A failed request returns `{ "ok": false, "error": { "code": "...", "message": ".
 ### Server-only check
 
 On 2026-11-13 a throwaway Client Component that imported `lib/pipeline/log.ts` made `pnpm --filter @lazarus/web build` fail with exit code 1 and an error that names that import. After the probe was removed the build passed again.
+
+## Verification API
+
+`POST /api/verify` runs the property-based test of a reincarnation against its legacy code in the Sandbox_Runner of `packages/sandbox-runner`, and stores the verdict on the `reincarnations` row. It shares the request checks, the access rules, the error envelope, and the cache header of the Pipeline API.
+
+### Request and response
+
+The body is `{ "corpseId": "<uuid>" }` and nothing else. The route takes the code, the test, and the entry function only from the database rows of the corpse, read under RLS, never from the request.
+
+A successful response has status 200 and this shape:
+
+```json
+{
+  "ok": true,
+  "source": "executed",
+  "reincarnation": {
+    "id": "<uuid>",
+    "targetStack": "TypeScript 6 (strict mode, ES2022)",
+    "pbtPassed": true,
+    "totalRuns": 1000,
+    "executionTimeMs": 512,
+    "verification": "VERIFIED",
+    "evidence": "Verified behavioral equivalence across 1,000 generated inputs."
+  },
+  "corpse": { "id": "<uuid>", "status": "RESURRECTED" }
+}
+```
+
+The values come from the stored row after the request, never directly from the sandbox result. `source` is one of:
+
+| Source | Meaning |
+|---|---|
+| `precomputed` | The corpse is a sample. Its stored result is returned and nothing runs. |
+| `stored` | The corpse already has a verdict (`pbt_passed` is not NULL). It is returned and nothing runs. |
+| `executed` | This request ran the sandbox and stored the result. |
+
+### Flow
+
+For a corpse of the signed-in member the route checks, in this order, and answers with the first step that applies:
+
+1. The caller is a verified member.
+2. The corpse belongs to the caller.
+3. The `reincarnations` row of the corpse exists (otherwise `REINCARNATION_REQUIRED`).
+4. The row already has a verdict (then `stored`).
+5. Verification is enabled (otherwise `VERIFICATION_DISABLED`).
+6. The entry function can be read from `invariants_json` of the Séance spec (otherwise `SEANCE_REQUIRED`).
+7. The quota is reserved (otherwise `RATE_LIMITED` or `QUOTA_UNAVAILABLE`).
+8. The Gate of the Sandbox_Runner grants a Lease and the run completes.
+9. The result is stored through `record_verification`.
+
+A visitor gets `precomputed` for a visible sample and `AUTH_REQUIRED` for anything else. The sample, `stored`, and visitor paths never read the kill switch, never reserve quota, and never call the sandbox.
+
+### Limits
+
+The values are in `apps/web/src/lib/verification/limits.ts`:
+
+- 10 verification runs per user in a rolling 60 minutes.
+- 100 verification runs in total in a rolling 24 hours.
+- 1,000 generated inputs per run, with a seed chosen by the server.
+- 1 concurrent run per user and 4 in total.
+
+Each run that passes the quota step uses one unit of quota, whatever its outcome. The concurrency limits apply per server process, not across instances, and a development hot reload resets them.
+
+### Execution switches
+
+- `USER_EXECUTION_ENABLED` in `apps/web/src/lib/verification/flags.ts` is shipped as `false`. While it is `false`, every request that reaches step 5 answers `VERIFICATION_DISABLED` and nothing runs. Flipping it is a deliberate, reviewed code change that a maintainer makes only after the hardening recommended in the Threat_Model of `07-sandboxed-execution` is judged adequate for the intended audience.
+- `LAZARUS_SANDBOX_KILL_SWITCH` is a server-only emergency stop. A value of `1` or `true` (any case, surrounding spaces ignored) engages it; unset, empty, `0`, or `false` leaves it off. Any other value is invalid and is treated as engaged (fail closed); the server configuration check reports it without its value. The route reads it on every request before the quota step, so engaging it stops new runs without a code change.
+
+### Evidence and limitations
+
+A result is empirical evidence from randomly generated inputs: `VERIFIED` means the legacy and modern versions agreed on every one of the `total_runs` inputs that were tried (1,000 for a run of this route). It is not an exhaustive check of every possible input. Known limitations:
+
+- (a) The verdict is visible only to the owner of the corpse under RLS, and it is not an attestation for anyone else.
+- (b) An owner with direct table access, or a call to `record_verification` with chosen arguments, could write the same columns, because the owner UPDATE policy of the Foundation allows it.
+- (c) Code under test can influence the verdict of its own run, as the Threat_Model of `07-sandboxed-execution` states.
+- (d) A `VERIFIED` or `FAILED` result is final: this route never runs that corpse again and never regenerates its reincarnation.
+- (e) An inconclusive outcome (a timeout, a memory limit, a compile error, or a forbidden capability) stores nothing and still uses one unit of quota, so a corpse whose code never completes a run stays unverified.
+- (f) The concurrency limits apply per server process.
+- (g) Neither the seed nor the counterexample is stored or returned. The seed is written only to the server log line `verification_run`.
+
+### Future hardening
+
+An optional future change, not part of this spec, is to move the verdict write behind a database function that only a trusted server identity can execute, together with column-level privileges that stop the owner from updating the verdict columns directly. It is not in this spec because it needs either a service role key (forbidden by Requirement 7 of 04 and Requirement 1 criterion 5 of 05) or a signing secret, and a change of the grants and policies of the Foundation.
+
+### Reproducing a run
+
+To reproduce a failed or surprising run, a maintainer works in a trusted environment (never in the web app):
+
+1. Take `original_code` from the `corpses` row, and `modern_code` and `pbt_test_code` from the `reincarnations` row.
+2. Take the entry function from `entry_function` in `invariants_json` of the `seance_specs` row.
+3. Take the `seed` from the `verification_run` log line of that request.
+4. Call `runSandboxedVerification` of `@lazarus/sandbox-runner` with that code, test, and entry function, `numRuns` 1,000, and the seed. The same inputs give the same status and the same counterexample input.
+
+### Verification error codes
+
+A failed request returns `{ "ok": false, "error": { "code": "...", "message": "..." } }` with a fixed English message. `RATE_LIMITED` and `VERIFICATION_BUSY` also set `Retry-After`.
+
+| Code | Status | When it happens |
+|---|---|---|
+| `INVALID_REQUEST` | 400 | The body is not a JSON object with exactly one key, `corpseId`, that holds a UUID. |
+| `AUTH_REQUIRED` | 401 | A visitor asked for a corpse that is not a visible sample. |
+| `FORBIDDEN_ORIGIN` | 403 | The `Origin` header is missing or is not the origin of the app. |
+| `NOT_FOUND` | 404 | A member asked for a corpse that does not exist or belongs to someone else. |
+| `NOT_PRECOMPUTED` | 404 | A sample corpse has no stored verification result. |
+| `METHOD_NOT_ALLOWED` | 405 | The HTTP method is not `POST`. |
+| `SEANCE_REQUIRED` | 409 | The corpse has no Séance spec with an entry function. |
+| `REINCARNATION_REQUIRED` | 409 | The corpse has no reincarnation to verify yet. |
+| `REQUEST_TOO_LARGE` | 413 | The request body is larger than 1,024 bytes. |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | The `Content-Type` is not `application/json`. |
+| `VERIFICATION_INCONCLUSIVE` | 422 | The run did not reach a verdict (for example a timeout or a memory limit), so nothing was stored. |
+| `RATE_LIMITED` | 429 | The user or the whole service reached its limit of verification runs (see the `Retry-After` header). |
+| `VERIFICATION_BUSY` | 429 | The user already has a run in progress or the server is at its concurrency limit (see the `Retry-After` header). |
+| `INTERNAL_ERROR` | 500 | An unexpected error occurred, or the session or the corpse could not be read. |
+| `PERSISTENCE_FAILED` | 500 | The result of a run could not be stored or read back. |
+| `QUOTA_UNAVAILABLE` | 503 | The run limit could not be checked, so nothing ran. |
+| `VERIFICATION_DISABLED` | 503 | Live verification is turned off by the execution flag or the kill switch. |
+| `SANDBOX_UNAVAILABLE` | 503 | The Sandbox_Runner could not be loaded or started. |

@@ -6,7 +6,8 @@ import { updateSession } from '@/lib/supabase/proxy';
 const CONFIGURATION_ERROR_PATH = '/configuration-error';
 
 // Next.js answers a missing method with an empty 405 and cannot send the Error_Envelope, so the Proxy does it.
-const PIPELINE_PATHS = new Set(['/api/scan', '/api/seance', '/api/reincarnate']);
+// '/api/verify' is added by 08-live-verification-api; METHOD_NOT_ALLOWED has the same envelope in both error tables.
+const PIPELINE_PATHS = new Set(['/api/scan', '/api/seance', '/api/reincarnate', '/api/verify']);
 
 export async function proxy(request: NextRequest) {
   // Before the configuration check, so the answer is the same when the public configuration is invalid.
