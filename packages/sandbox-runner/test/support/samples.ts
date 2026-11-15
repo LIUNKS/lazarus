@@ -6,6 +6,9 @@ import type { SandboxLimits, SandboxVerifyOptions } from '../../src/types.ts';
 /** Small memory limits, with enough time for a normal run on a busy host. */
 export const SMALL: SandboxLimits = { wallClockTimeoutMs: 5000, maxOldGenerationSizeMb: 32, caseTimeoutMs: 1000 };
 
+/** Test timeout for properties that start many Workers in one test (about 2 s per Worker run). */
+export const SLOW_PROPERTY_TIMEOUT_MS = 120_000;
+
 /** For tests that expect a timeout: the run is cut short quickly. */
 export const QUICK: SandboxLimits = { wallClockTimeoutMs: 400, maxOldGenerationSizeMb: 32, caseTimeoutMs: 200 };
 

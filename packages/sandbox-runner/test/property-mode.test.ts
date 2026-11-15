@@ -13,6 +13,7 @@ import {
   options,
   QUICK,
   SEED_SAMPLES,
+  SLOW_PROPERTY_TIMEOUT_MS,
   settledWorkerCount,
   VERIFIER_FIXTURES,
 } from './support/samples.ts';
@@ -106,7 +107,8 @@ describe('property mode: results', () => {
       }),
       { numRuns: 4 },
     );
-  });
+    // Each run starts a compile Worker and an execution Worker (about 2 s), so this needs more than 30 s on a busy host.
+  }, SLOW_PROPERTY_TIMEOUT_MS);
 
   it('R9.9 the Sandbox and the Verifier agree on status, runs, and counterexample input', async () => {
     // Feature: 07-sandboxed-execution, Property 6: Parity with the Verifier
@@ -136,7 +138,8 @@ describe('property mode: results', () => {
       }),
       { numRuns: 8 },
     );
-  });
+    // Each run starts Workers and also runs the Verifier, so this needs more than 30 s on a busy host.
+  }, SLOW_PROPERTY_TIMEOUT_MS);
 
   it('R9.10 the evidence text is the one of the Verifier and holds no Forbidden_Phrase', async () => {
     // Feature: 07-sandboxed-execution, Property 10: Evidence text

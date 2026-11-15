@@ -2,7 +2,7 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { runSandboxedCases } from '../src/cases-mode.ts';
 import { createdWorkerCount } from '../src/host/supervisor.ts';
-import { DOUBLE, DOUBLE_DIFFERENT, expectHygienic, SMALL } from './support/samples.ts';
+import { DOUBLE, DOUBLE_DIFFERENT, expectHygienic, SLOW_PROPERTY_TIMEOUT_MS, SMALL } from './support/samples.ts';
 
 const cases = (inputs: unknown[], overrides: object = {}) =>
   runSandboxedCases({ ...DOUBLE_DIFFERENT, inputs, limits: SMALL, ...overrides });
@@ -72,7 +72,8 @@ describe('cases mode', () => {
       ),
       { numRuns: 6 },
     );
-  });
+    // Each call starts a Worker (about 2 s), so this property needs more than the default 30 s on a busy host.
+  }, SLOW_PROPERTY_TIMEOUT_MS);
 
   it('R10.2 rejects fewer than 1 or more than 1000 inputs without creating a Worker', async () => {
     const before = createdWorkerCount();
