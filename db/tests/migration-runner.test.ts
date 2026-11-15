@@ -44,6 +44,16 @@ function systemPath(): string {
   return root ? `${join(root, 'System32')}` : '/usr/bin:/bin';
 }
 
+/**
+ * The directory of the `pnpm` executable, so the reduced PATH of R6.1 can still run `pnpm exec`. Locally `pnpm` lives next to
+ * `node`, but a CI runner installs it somewhere else. Returns an empty string when it cannot be found.
+ */
+function pnpmDirectory(): string {
+  const lookup = run(process.platform === 'win32' ? 'where' : 'which', ['pnpm']);
+  const first = lookup.stdout.split(/\r?\n/).find((line) => line.trim() !== '');
+  return lookup.code === 0 && first !== undefined ? dirname(first.trim()) : '';
+}
+
 function runner(
   env: Record<string, string | undefined>,
   options: { withFakeFlyway?: boolean; exitCode?: number } = {},
@@ -73,7 +83,7 @@ describe('R6 Migration_Runner', () => {
     const envFile = join(fakeBin, 'test.env');
     writeFileSync(envFile, Object.entries(VALID_ENV).map(([k, v]) => `${k}=${v}`).join('\n'));
     rmSync(callLog, { force: true });
-    const path = [fakeBin, dirname(process.execPath), systemPath()].join(delimiter);
+    const path = [fakeBin, dirname(process.execPath), pnpmDirectory(), systemPath()].filter(Boolean).join(delimiter);
     const result = run('pnpm', ['exec', 'dotenv', '-e', envFile, '--', 'node', 'scripts/db-migrate.ts'], {
       env: { ...process.env, PATH: path, Path: path, FAKE_FLYWAY_LOG: callLog, FAKE_FLYWAY_EXIT: '0' },
     });
