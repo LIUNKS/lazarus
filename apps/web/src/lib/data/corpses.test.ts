@@ -84,16 +84,75 @@ describe('R10 data layer: detail and writes', () => {
     user_id: null,
     repo_url: 'https://example.test/repo',
     original_code: 'function f() {}\n',
-    curses: [{ id: 'c1', curse_type: 'VAR_HOISTING', severity: 'HEX', line_number: 3 }],
+    curses: [
+      {
+        id: 'c1',
+        curse_type: 'VAR_HOISTING',
+        severity: 'HEX',
+        line_number: 3,
+        description: 'A var declaration is hoisted.',
+        exorcism_strategy: 'Use const or let.',
+      },
+    ],
   };
 
   it('maps a detail row and derives the curse count from the list', async () => {
     const { client, calls } = fakeClient({ data: DETAIL });
     const detail = await getCorpse(client, ROW.id);
     expect(detail?.curseCount).toBe(1);
-    expect(detail?.curses).toEqual([{ id: 'c1', curseType: 'VAR_HOISTING', severity: 'HEX', lineNumber: 3 }]);
+    expect(detail?.curses).toEqual([
+      {
+        id: 'c1',
+        curseType: 'VAR_HOISTING',
+        severity: 'HEX',
+        lineNumber: 3,
+        description: 'A var declaration is hoisted.',
+        exorcismStrategy: 'Use const or let.',
+      },
+    ]);
     expect(detail?.originalCode).toBe('function f() {}\n');
     expect(calls).toContainEqual(['order', ['line_number', { referencedTable: 'curses', ascending: true }]]);
+  });
+
+  it('R2.2 selects the description and the exorcism strategy of each curse in the same query', async () => {
+    const { client, calls } = fakeClient({ data: DETAIL });
+    await getCorpse(client, ROW.id);
+    expect(calls.filter(([method]) => method === 'from')).toHaveLength(1);
+    const columns = String(calls.find(([method]) => method === 'select')?.[1][0]);
+    expect(columns).toContain('curses(id,curse_type,severity,line_number,description,exorcism_strategy)');
+  });
+
+  it('R2.2 orders curses by line number and then by curse type, whatever order the rows arrive in', async () => {
+    const curse = (id: string, curseType: string, lineNumber: number) => ({
+      id,
+      curse_type: curseType,
+      severity: 'HEX',
+      line_number: lineNumber,
+      description: 'd',
+      exorcism_strategy: 's',
+    });
+    const { client } = fakeClient({
+      data: {
+        ...DETAIL,
+        curses: [
+          curse('a', 'VAR_HOISTING', 9),
+          curse('b', 'IMPLICIT_COERCION', 2),
+          curse('c', 'GLOBAL_POLLUTION', 9),
+          curse('d', 'CALLBACK_HELL', 2),
+        ],
+      },
+    });
+    const detail = await getCorpse(client, ROW.id);
+    expect(detail?.curses.map((item) => item.id)).toEqual(['d', 'b', 'c', 'a']);
+  });
+
+  it.each([
+    ['a missing description', { id: 'c1', curse_type: 'VAR_HOISTING', severity: 'HEX', line_number: 3, exorcism_strategy: 's' }],
+    ['a missing strategy', { id: 'c1', curse_type: 'VAR_HOISTING', severity: 'HEX', line_number: 3, description: 'd' }],
+    ['a numeric description', { id: 'c1', curse_type: 'VAR_HOISTING', severity: 'HEX', line_number: 3, description: 5, exorcism_strategy: 's' }],
+  ])('R2.6 rejects a curse with %s', async (_label, curse) => {
+    const { client } = fakeClient({ data: { ...DETAIL, curses: [curse] } });
+    await expect(getCorpse(client, ROW.id)).rejects.toBeInstanceOf(DataError);
   });
 
   it('returns null when no row is visible', async () => {

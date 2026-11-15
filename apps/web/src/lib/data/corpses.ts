@@ -4,7 +4,7 @@ import { DataError, parseDetail, parseSummary, type CorpseDetail, type CorpseSum
 // One request per list: the embedded count avoids one query per corpse.
 const SUMMARY_COLUMNS = 'id,title,source_language,status,created_at,is_sample,curses(count)';
 const DETAIL_COLUMNS =
-  'id,title,source_language,status,created_at,is_sample,user_id,repo_url,original_code,curses(id,curse_type,severity,line_number)';
+  'id,title,source_language,status,created_at,is_sample,user_id,repo_url,original_code,curses(id,curse_type,severity,line_number,description,exorcism_strategy)';
 
 export const OWNED_LIST_LIMIT = 50;
 
@@ -13,8 +13,8 @@ interface DatabaseError {
   message?: string;
 }
 
-/** Logs on the server and returns a DataError whose message is generic. */
-function fail(context: string, error: DatabaseError): DataError {
+/** Logs on the server and returns a DataError whose message is generic. Shared with `stages.ts`. */
+export function fail(context: string, error: DatabaseError): DataError {
   console.error(`[data] ${context} failed: ${error.code ?? 'no-code'} ${error.message ?? ''}`.trim());
   return new DataError(`${context} failed.`);
 }
