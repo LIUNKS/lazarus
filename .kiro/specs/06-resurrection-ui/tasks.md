@@ -12,13 +12,14 @@
 
 ## Tasks
 
-- [ ] 1. Data layer for the stage results
-  - [ ] 1.1 Extend `src/lib/data/types.ts` and add the stage queries
+- [x] 1. Data layer for the stage results
+  - [x] 1.1 Extend `src/lib/data/types.ts` and add the stage queries
     - Add `description` and `exorcismStrategy` to `CurseRow`; add `InvariantsDocument`, `SeanceSpec`, `Reincarnation`, and the guards `parseInvariants`, `parseSeanceSpec`, `parseReincarnation`
     - Add `description,exorcism_strategy` to `DETAIL_COLUMNS` in `corpses.ts` and sort curses by `(lineNumber, curseType)` in `parseDetail`
     - Write `src/lib/data/stages.ts` (`getSeanceSpec`, `getReincarnation`, `approveSeanceSpec`) and `src/lib/data/load-stages.ts` (React `cache`, both reads concurrent); resolve Open Item 11 (shared `fail()` helper)
+    - Open Item 11 resolved: `fail()` is exported from `corpses.ts` (a one-word change) and imported by `stages.ts`, so no helper is duplicated and no module moves.
     - _Requirements: 2.1 to 2.7, 12.1, 12.2, 14.2_
-  - [ ] 1.2 Update and add data layer tests with `fakeClient`
+  - [x] 1.2 Update and add data layer tests with `fakeClient`
     - Update the existing corpse tests for the new curse fields; cover the stage queries' filters, ordering, and `limit`, `parseInvariants` accept and reject cases, NULL columns, wrong types, and the generic `DataError`
     - _Requirements: 2.2 to 2.6, 16.7_
 
