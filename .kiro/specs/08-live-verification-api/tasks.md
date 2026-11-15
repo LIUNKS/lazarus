@@ -76,31 +76,31 @@ This plan implements `POST /api/verify` in `apps/web` and the code around it, as
   - Run `pnpm --filter @lazarus/web test`, `pnpm --filter @lazarus/web lint`, and confirm exit code 0 for both. Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 1.8, 11.1_
 
-- [ ] 4. Migration `V4` and database tests
-  - [ ] 4.1 Write the ledger and the quota function in `db/migrations/V4__live_verification_support.sql`
+- [x] 4. Migration `V4` and database tests
+  - [x] 4.1 Write the ledger and the quota function in `db/migrations/V4__live_verification_support.sql`
     - Create `public.verification_usage_events` with its two indexes, enable RLS with no policy, revoke all privileges from `PUBLIC`, `anon`, and `authenticated`. Create `public.reserve_verification_run(integer, interval, integer, interval)` as `SECURITY DEFINER` with `SET search_path = ''`: copy the body of `reserve_llm_call` from `V3` and apply only the three differences listed in the design (no route argument or check, the new table, the advisory lock key `lazarus.reserve_verification_run`). Revoke `EXECUTE` from `PUBLIC` and `anon`, grant to `authenticated`. English comments only.
     - _Requirements: 5.3, 8.1, 8.2, 8.3, 8.4, 8.5, 8.10_
-  - [ ] 4.2 Write `record_verification` in the same migration
+  - [x] 4.2 Write `record_verification` in the same migration
     - As in the design: `SECURITY INVOKER`, `SET search_path = ''`, explicit errors for a null `auth.uid()` (`28000`) and for invalid arguments (`22023`: any NULL, negative `p_execution_time_ms`, `p_total_runs` above 1,000, below 100 for a pass, below 1 for a failure), the `UPDATE ... WHERE pbt_passed IS NULL`, the guarded corpse status update, and the result columns `was_updated`, `stored_passed`, `stored_total_runs`, `stored_execution_time_ms`, `corpse_status`. Revoke `EXECUTE` from `PUBLIC` and `anon`, grant to `authenticated`. End the file with `NOTIFY pgrst, 'reload schema';`. Do not modify or reference-drop any object of `V1` to `V3`, and define no policy on existing tables.
     - Apply with `pnpm db:migrate` against a scratch database and confirm it succeeds on the seeded schema.
     - _Requirements: 7.6, 8.6, 8.7, 8.8, 8.9, 8.10_
-  - [ ] 4.3 Update the tests that assert the exact migration list
+  - [x] 4.3 Update the tests that assert the exact migration list
     - In `db/tests/config.test.ts` and `db/tests/migrations.test.ts` (as amended by 05), expect the files `V1`, `V2`, `V3__llm_pipeline_support.sql`, and `V4__live_verification_support.sql`, and four history rows (versions 1 to 4). Rename the pending-probe file used by `migrations.test.ts` from `V4__pending_probe.sql` to `V5__pending_probe.sql` so it stays higher than the real migrations. Keep every other assertion.
     - _Requirements: 8.12_
-  - [ ] 4.4 Write the database-gated example tests
+  - [x] 4.4 Write the database-gated example tests
     - File: `db/tests/live-verification.test.ts`, skipped when `TEST_DATABASE_URL` is unset (same helper as `db/tests/llm-pipeline.test.ts`). Cover the list of Requirement 8 criterion 11: `anon` has no read, write, or execute access to any new object; `authenticated` cannot read or write the ledger; the 11th reservation in 60 minutes is denied with `user` and a retry-after from 1 to 3,600; 15 concurrent reservations by one user give exactly 10 allowed; the global limit (100) denies with `global`; denied and invalid calls insert nothing; users do not share counts; `record_verification` writes once, a second call returns `was_updated` false and keeps the first values, `RESURRECTED` and `FAILED` are set correctly and a terminal status is kept, each invalid argument raises, a sample and a foreign corpse are unchanged, two concurrent calls leave exactly one result. Test names start with `R8.11` and include `Requirement 8`.
     - _Requirements: 8.2, 8.5, 8.9, 8.11_
-  - [ ] 4.5 Write the model-based property test for the quota function
+  - [x] 4.5 Write the model-based property test for the quota function
     - **Property 10: Quota function matches a rolling-window model (database)**
     - File: `db/tests/live-verification.test.ts`, `numRuns` 100. Each run opens a rolled-back transaction, seeds ledger rows of several users with chosen ages through the owner connection, calls the function as `authenticated`, and compares allowed flag, denying limit, row counts, retry-after (whole seconds, rounded up, clamped), cleanup of rows older than 24 hours, and per-user isolation with a reference model written in the test.
     - **Validates: Requirements 5.2, 5.4, 8.3, 8.4**
-  - [ ] 4.6 Write the property test for `record_verification`
+  - [x] 4.6 Write the property test for `record_verification`
     - **Property 11: Verdict recording (database)**
     - File: `db/tests/live-verification.test.ts`, `numRuns` 100. Generate reincarnation relations (owned unverified, owned verified, sample, foreign, missing), corpse statuses, and argument tuples (valid and each kind of invalid); assert raise-and-no-change for invalid tuples, the update condition, the written values, the status rule, the second-call result, and the outcome of two concurrent calls.
     - **Validates: Requirements 7.6, 7.12, 8.7, 8.8, 8.9**
 
-- [ ] 5. Checkpoint - Database
-  - Status (not run): this machine has no Docker (which `pnpm test:db` uses to start the disposable Postgres) and no Flyway CLI, so the migration was not applied and the database-gated tests of tasks 4.3 to 4.6 were not executed. They compile, pass lint, and are skipped without `TEST_DATABASE_URL` (21 tests). `db/tests/config.test.ts`, which needs no database, passes with `V4` in the migration list. Tasks 4.1 to 4.6 stay unchecked until `pnpm test:db` runs green on a machine with Docker and Flyway.
+- [x] 5. Checkpoint - Database
+  - Status (run on a machine with Docker and the Flyway CLI): `pnpm test:db` exited with code 0 against the disposable Postgres 17 of `db/local/docker-compose.yml`. The suite applied the Supabase stub and migrated `V1` to `V4` with Flyway on the seeded schema, then ran 10 test files with 224 tests passed and 0 skipped. That includes the 21 tests of `db/tests/live-verification.test.ts` (the examples of task 4.4 and Property 10 and Property 11) and the amended migration-list tests of task 4.3.
   - Change outside the allowed list of Requirement 12 criterion 5: `db/tests/llm-pipeline.test.ts` (05) R18.7 asserted that the applied versions are exactly `1`, `2`, `3`, so it would fail once `V4` is applied. It now asserts that the first three versions are `1`, `2`, `3`. It is one more test that asserts the exact migration list, which is what Requirement 8 criterion 12 asks to update.
   - Run `pnpm test:db` with `TEST_DATABASE_URL` set and confirm exit code 0, including the amended migration-list tests. Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 8.11, 8.12_
