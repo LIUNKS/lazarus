@@ -7,6 +7,8 @@ const NOTICES: Record<string, string> = {
   'already-imported': 'You already imported this code. Showing the existing corpse.',
   deleted: 'The corpse was deleted.',
   'delete-failed': 'That corpse could not be deleted.',
+  approved: 'The séance spec was approved.',
+  'approve-failed': 'The séance spec could not be approved.',
 };
 
 export function authErrorMessage(code: string | undefined): string | null {

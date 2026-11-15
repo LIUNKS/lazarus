@@ -345,3 +345,84 @@ A failed request returns `{ "ok": false, "error": { "code": "...", "message": ".
 | `QUOTA_UNAVAILABLE` | 503 | The run limit could not be checked, so nothing ran. |
 | `VERIFICATION_DISABLED` | 503 | Live verification is turned off by the execution flag or the kill switch. |
 | `SANDBOX_UNAVAILABLE` | 503 | The Sandbox_Runner could not be loaded or started. |
+
+## Resurrection stages
+
+The corpse page (`/corpses/[id]`) shows the three stages of the workflow below the legacy source. The old "Next stages" placeholder is gone. This section adds no environment variable, no route, no table, and no dependency.
+
+Everything on the page is read from the database with the Supabase client of the request, so Row Level Security decides what is visible. After a successful action the page only calls `router.refresh()`: it never renders the body of an API response, and the stored rows are the single source of truth. All stored text (curses, spec, code, stack) is shown as plain text, so markup in it appears as characters.
+
+### The three sections
+
+| Section | What it shows |
+|---|---|
+| Hex Scanner (`#hex-scanner`) | The stored curses with their exact line numbers, a summary by severity and by type, and a link from each "Line N" to that line of the legacy source. A line that has a curse is marked in the source and carries the hidden text "Curse on this line". |
+| Séance Chamber (`#seance-chamber`) | The extracted requirements (EARS criteria with the keywords in bold), the design, the input and output invariants, and the approval state ("Approved on YYYY-MM-DD" or "Not approved yet"). |
+| Laboratory (`#laboratory`) | The verification result first, then the resurrected TypeScript, and the property-based test in a disclosure that is collapsed by default. |
+
+A navigation block above the sections links to each one and states its state in words. The overview and the sections are in the server-rendered HTML, so the page stays readable without JavaScript.
+
+### Who sees which controls
+
+| Viewer | Controls |
+|---|---|
+| Visitor (not signed in) | None. The page holds no button, no form, and no request to `/api/`. It shows a notice that the results are precomputed and read-only, with a link to sign in. A visitor can never start a model call. |
+| Member looking at a sample | None. The notice says that sample results are precomputed and read-only. |
+| Owner of the corpse | The scan, the start of the séance, the approval, the start of the reincarnation, and "Verify live", each only while it makes sense for what is stored. A control that is not available shows its reason, for example "Approve the séance spec to enable reincarnation." A result that already exists is never offered for regeneration. |
+
+### Verification states
+
+The Laboratory states one of four states, computed from the stored columns `pbt_passed` and `total_runs`:
+
+| State | When | What the page says |
+|---|---|---|
+| `VERIFIED` | `pbt_passed` is true and `total_runs` is a positive integer | "Verified behavioral equivalence across N generated inputs." with the exact count and a comma as the thousands separator, then a note that this is empirical evidence from randomly generated inputs and that other inputs were not checked. |
+| `FAILED` | `pbt_passed` is false | "The modern function differed from the legacy function." and, when the count is stored, how many generated inputs were checked. |
+| `NOT_RUN` | `pbt_passed` is NULL | "Not verified yet." |
+| `INCOMPLETE` | `pbt_passed` is true without a valid run count | "A passing result is stored without a run count, so no evidence is shown." |
+
+Only `VERIFIED` uses the emerald color, and the state is always written as text. The page never uses the `evidence` field of an API response.
+
+### Verify live
+
+"Verify live" runs the legacy and the modern function in an isolated environment on generated inputs. It calls `POST /api/verify` (see the Verification API section). It appears only for the owner of a corpse that has a stored reincarnation in the state `NOT_RUN`. It does not appear for `VERIFIED`, `FAILED`, or `INCOMPLETE`, because those are final results that the route never replaces, and it does not appear for a visitor or for a member looking at a sample.
+
+The control stays visible and enabled even when the server has live verification switched off, which is the default. What each failure message means:
+
+| Message | Code | Meaning |
+|---|---|---|
+| "Live verification is switched off on this server. Nothing was run." | `VERIFICATION_DISABLED` | The server keeps user execution disabled, or the kill switch is engaged. Nothing ran and nothing was stored. |
+| "The verification service is busy." | `VERIFICATION_BUSY` | A run of this user is in progress, or the server is at its concurrency limit. The control waits for the `Retry-After` time when the server sends one. |
+| "The verification limit was reached." | `RATE_LIMITED` | The separate verification limit was reached. The control waits for the `Retry-After` time when the server sends one. |
+| "The check could not complete ... No result was stored." | `VERIFICATION_INCONCLUSIVE` | The run ended without a verdict, for example because it ran out of time or memory. The attempt may count toward the limit. |
+| "The isolated environment is not available right now. Nothing was run." | `SANDBOX_UNAVAILABLE` | The isolated environment could not start. |
+| "Generate the module first, then verify it." | `REINCARNATION_REQUIRED` | The corpse has no reincarnation yet. |
+
+The numbers of the verification limit belong to the Verification API and are not repeated here. The browser waits at most 70 seconds for this route, which is longer than the 60 second deadline of the server. If the wait ends first, reload the page to see what was stored.
+
+### Approval gate
+
+The reincarnation control is offered only for an approved séance. This is a restriction of the page and nothing more: `POST /api/reincarnate` does not check `approved_at`, so a direct API client can start a reincarnation without approval. This is intended. The gate is a review step that this page asks of the owner, and no check on the server is planned. A séance copied from a stored result for identical code starts unapproved, so approve the copy before reincarnation.
+
+### Streaming
+
+The routes return one JSON document and can take up to about two minutes, so the page shows an indeterminate pending message while a request runs. It does not stream progress, and no spec plans to. Adding streaming would need changes to the routes first.
+
+### Troubleshooting
+
+- A sample shows "No curses are stored", "No séance is stored", or "No reincarnation is stored": the sample rows come from the database migrations. Run `pnpm db:migrate`.
+- The scan, the séance, and the reincarnation answer with "The service is unavailable right now": they need the Pipeline API and its configuration (see the Pipeline API section, including the model settings).
+- "Verify live" answers that live verification is switched off: the Verification API is deployed, but the server keeps user execution disabled, which is the default. Turning it on is a reviewed code change and is described in the Verification API section.
+- A button stays disabled: a request is pending, or the server asked the page to wait. The message under the button says which.
+
+### Manual verification
+
+The automated tests render the sections to static markup and test the logic of the controls. These checks need a real project with the Pipeline API and the Verification API deployed:
+
+1. As a visitor, open each sample. Check the three sections and the exact run count, and check that the Network tab shows no request to `/api/`.
+2. Sign in, import legacy code, and run the scan. Check the curses, the marked lines in the source, and the "Line N" links.
+3. Begin the séance, read the spec, approve it, and begin the reincarnation. The Laboratory should show "Not verified yet." and a "Verify live" button.
+4. Press "Verify live". With live verification switched off, expect the message that it is switched off, and expect the button to stay enabled. With it switched on, expect the evidence block with the exact run count, or the text for a failed run.
+5. Import the same code again as a second corpse and begin the séance. Expect the message that a stored result was reused and that no model request was made.
+6. Reach a request limit and check the waiting message and the disabled button.
+7. Use only the keyboard, switch on reduced motion, throttle the network to see the pending state, and check a viewport of 360 px width.
