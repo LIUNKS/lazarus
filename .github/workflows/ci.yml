@@ -1,0 +1,129 @@
+# Continuous integration for Lazarus.
+#
+# Two jobs run on every pull request to develop or main and on every push to those branches:
+#   check     the same three commands as a local check: `pnpm lint`, `pnpm build`, and `pnpm test`.
+#   database  the Foundation suite against a disposable Postgres 17 with the Flyway CLI (`db/tests`).
+#             It is the CI version of `pnpm test:db`, which starts the same database with Docker Compose.
+#
+# The tests need no secret and no environment variable of the real project, so the workflow is safe for pull requests
+# from forks. Actions are pinned by commit SHA (the tag is in the comment), so a moved tag cannot change what runs.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same pull request replaces the run in progress. Runs on develop and main always finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  DO_NOT_TRACK: '1'
+
+jobs:
+  check:
+    name: Lint, build, and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The pnpm version comes from `packageManager` in package.json.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          cache: true
+
+      # `engines.node` of package.json asks for Node.js 24 or newer.
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Build
+        run: pnpm build
+
+      # The packages are built, so Turborepo runs every test task. A fresh runner has no Turborepo cache to replay.
+      - name: Test
+        run: pnpm test
+
+  database:
+    name: Database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: lazarus_local
+          POSTGRES_DB: lazarus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lazarus_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      # Same credentials as db/local/docker-compose.yml. The password is for a throwaway database that lives only in this job.
+      TEST_DATABASE_URL: postgresql://postgres:lazarus_local@localhost:5432/lazarus_test
+      FLYWAY_VERSION: 13.12.1
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The Linux x64 archive includes its own Java runtime. The .sha1 file comes from the same server as the archive, so it
+      # detects a damaged or cut download. It does not prove who published the file.
+      - name: Install the Flyway CLI
+        run: |
+          set -euo pipefail
+          base="https://download.red-gate.com/maven/release/com/redgate/flyway/flyway-commandline/${FLYWAY_VERSION}"
+          file="flyway-commandline-${FLYWAY_VERSION}-linux-x64.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 --output "${RUNNER_TEMP}/${file}" "${base}/${file}"
+          curl --fail --silent --show-error --location --retry 3 --output "${RUNNER_TEMP}/${file}.sha1" "${base}/${file}.sha1"
+          echo "$(cat "${RUNNER_TEMP}/${file}.sha1")  ${RUNNER_TEMP}/${file}" | sha1sum --check -
+          mkdir -p "${HOME}/flyway"
+          tar --extract --gzip --file "${RUNNER_TEMP}/${file}" --strip-components=1 --directory "${HOME}/flyway"
+          rm -f "${RUNNER_TEMP}/${file}" "${RUNNER_TEMP}/${file}.sha1"
+          echo "${HOME}/flyway" >> "${GITHUB_PATH}"
+
+      - name: Show the Flyway version
+        run: flyway -v
+
+      # The root Vitest configuration runs only db/tests. With TEST_DATABASE_URL set, the database tests are not skipped.
+      - name: Run the database tests
+        run: pnpm exec vitest run
