@@ -267,6 +267,16 @@ describe('property mode: Test_Code and load errors', () => {
     if (modern.status === 'ERROR') expect(modern.message).toContain('modern code');
   });
 
+  it('R5.3 a timeout while the Entry_Function is looked up gives SANDBOX_TIMEOUT, not ENTRY_FUNCTION_NOT_FOUND', async () => {
+    // Supporting check: the lookup is a vm call under the time budget. `f` is defined, but reading it never returns, so the
+    // time runs out at that exact step, whatever the load of the host is. On a busy host the same thing happened by chance.
+    const legacyCode = "Object.defineProperty(globalThis, 'f', { configurable: true, get: function () { for (;;) {} } });";
+    const result = await run(options({ legacyCode, modernCode: MODERN_STUB, limits: { wallClockTimeoutMs: 1000, maxOldGenerationSizeMb: 32 } }));
+    expect(result).toMatchObject({ status: 'ERROR', code: 'SANDBOX_TIMEOUT' });
+    if (result.status === 'ERROR') expect(result.message).toContain('legacy code');
+    expectHygienic(result);
+  });
+
   it('R7.3 a generator that yields a function gives UNSUPPORTED_VALUE', async () => {
     const result = await run(options({ testCode: 'return fc.property(fc.constant(function () {}), function (v) { assertEquivalent(v); });', modernCode: MODERN_STUB, legacyCode: 'function f(a) { return a; }' }));
     expect(result).toMatchObject({ status: 'ERROR', code: 'UNSUPPORTED_VALUE' });
