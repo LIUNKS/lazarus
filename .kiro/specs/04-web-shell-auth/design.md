@@ -130,7 +130,7 @@ export function readPublicConfig(): ConfigResult; // reads the two variables wit
 
 `readPublicConfig` accesses `process.env.NEXT_PUBLIC_SUPABASE_URL` and `process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY` as literal expressions, because Next.js only inlines literal accesses into client bundles. Problems carry the variable name and a reason, never the value. The URL rule is `https://`, or `http://` with host `localhost` or `127.0.0.1`.
 
-No module in `src/` reads a Server_Only_Variable. The app needs none of them, so Requirement 2 criteria 5 to 7 hold by absence and are enforced by tests (Testing strategy).
+No module in `src/` reads a Server_Only_Variable. The app needs none of them, so Requirement 2 criteria 5 to 7 hold by absence and are enforced by tests (Testing strategy). (Amendment, spec 08: `lib/env-server.ts` is the single exception, for the optional `LAZARUS_SANDBOX_KILL_SWITCH`. It is server-only and exports the pure `parseKillSwitch`; an invalid value is reported by name and reason and treated as engaged, and it never triggers the configuration error page.)
 
 ### Root env loading (`next.config.ts`)
 
@@ -285,7 +285,7 @@ The profile display name comes from `public.profiles` (`github_username`, `avata
 
 - Public_Config: missing, blank, malformed, and valid values (Requirement 15.4).
 - Import: one example per rejection rule and one accepted example (Requirement 15.3).
-- Server-only isolation, static: every file with `'use client'` and every module reachable from it through relative or `@/` imports is scanned; none may contain a Server_Only_Variable name, and no `src/` file may contain `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `LLM_MODEL`, `dangerouslySetInnerHTML`, or an import of `ai`, `@ai-sdk/groq`, or `@ai-sdk/google`.
+- Server-only isolation, static: every file with `'use client'` and every module reachable from it through relative or `@/` imports is scanned; none may contain a Server_Only_Variable name, and no `src/` file may contain `SUPABASE_SERVICE_ROLE_KEY`, `GROQ_API_KEY`, `LLM_MODEL`, `dangerouslySetInnerHTML`, or an import of `ai`, `@ai-sdk/groq`, or `@ai-sdk/google`. (Specs 05 and 08 amend this scan with the allowed locations of their own variable names.)
 - Server-only isolation, built output (Requirement 15.7): the test runs `next build` with `NEXT_DIST_DIR` set to a temporary directory and sentinel values for the Server_Only_Variables in its environment, then searches `static/` for the variable names and the sentinel values. The build uses placeholder Public_Config and no network. It takes tens of seconds, so the test has a long timeout.
 
 ### Manual verification (not automated)

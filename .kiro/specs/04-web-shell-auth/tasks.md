@@ -107,3 +107,7 @@
 - [x] 16. Final checkpoint
   - [x] 16.1 Run `pnpm lint`, `pnpm build`, `pnpm test`, and `pnpm test:db` from the root; confirm exit code 0
   - [x] 16.2 Check scope (Requirement 17) and re-read Requirements 1 to 17; list anything not verifiable
+
+## Amendments
+
+- **Spec 08 (environment).** The requirements of this spec gained criteria 2.9 and 2.10 (server-only module for later Server_Only_Variables, and the validation of the optional `LAZARUS_SANDBOX_KILL_SWITCH`), and the glossary and criterion 16.4 were updated. No task of this spec is reopened: the implementation (`apps/web/src/lib/env-server.ts` and its tests) and the `.env.example` entry belong to tasks 1.2 and 2.3 of `08-live-verification-api`.

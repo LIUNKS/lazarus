@@ -1,0 +1,9 @@
+import { defineConfig, mergeConfig } from 'vitest/config';
+import shared from '../../vitest.shared.ts';
+
+export default mergeConfig(
+  shared,
+  defineConfig({
+    test: { include: ['test/**/*.test.ts'], setupFiles: ['test/support/setup.ts'], testTimeout: 30_000 },
+  }),
+);

@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Verify after spec task",
+      "trigger": "PostTaskExec",
+      "description": "After a spec task is completed, runs pnpm lint and the tests of the changed packages under packages/.",
+      "action": {
+        "type": "command",
+        "command": "node scripts/hooks/verify-task.mjs",
+        "timeout": 300
+      }
+    }
+  ]
+}

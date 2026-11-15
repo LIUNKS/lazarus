@@ -82,3 +82,347 @@ GitHub sign-in against a real Supabase project and the Data API queries cannot r
 
 - The duplicate check on import is not atomic: two simultaneous imports of the same code can create two rows in the member's own Crypt.
 - No Content-Security-Policy is set yet; it will be designed together with the final pages.
+
+## Pipeline API
+
+Three Route Handlers run the server side of the resurrection workflow: `POST /api/scan` (the Hex Scanner), `POST /api/seance` (the Séance Chamber), and `POST /api/reincarnate` (the generation half of the Laboratory). They add to what the sections above describe. Where this section differs from a sentence above about model calls or model keys, this section applies to these three routes. The Morgue pages themselves still call no model.
+
+Every route accepts only `POST` with `Content-Type: application/json` and an `Origin` header that equals the origin of the app. The request body is at most 1,024 bytes and holds exactly one key:
+
+```json
+{ "corpseId": "<uuid>" }
+```
+
+The route reads the code, its hash, and every other input from the database. Nothing else in the request changes the result. Every response is JSON with `Cache-Control: private, no-store`.
+
+### Who can call what
+
+- **A Visitor never triggers an LLM call.** A visitor can read the stored results of the three sample corpses and nothing else. No model is called, no quota is spent, and nothing is written, whatever the request body holds.
+- **The service role key is never used by the Pipeline API.** Every query runs with the Supabase client of the request, so Row Level Security decides what each caller can read and write.
+- A signed-in Member can run all three routes on their own corpses. Code that belongs to another member is reported as not found.
+
+### Result sources
+
+The Séance and Reincarnate routes report where a result came from in the field `source`:
+
+| `source` | Meaning |
+|---|---|
+| `precomputed` | The stored result of a sample corpse. |
+| `stored` | The result already stored for the requested corpse. |
+| `cache` | A copy of a result of another corpse that the caller can see and that has the same `code_hash`. |
+| `generated` | A new result from the model, checked and stored by this request. |
+
+The cache rule: a stored row of another visible corpse with the same `code_hash` is reused and no LLM call is made. Only samples and the member's own corpses are visible, so a result is never shared between two users.
+
+### `POST /api/scan`
+
+Runs the deterministic curse scanner on the corpse and replaces its stored curses. It makes no model call, reads no model setting, and spends no quota. A sample corpse returns its stored curses and nothing is scanned or written.
+
+```json
+{
+  "ok": true,
+  "source": "generated",
+  "lineCount": 12,
+  "curses": [
+    { "curseType": "VAR_HOISTING", "severity": "HEX", "lineNumber": 3, "description": "...", "exorcismStrategy": "..." }
+  ]
+}
+```
+
+`source` is `precomputed` for a sample and `generated` for a scan of a member's corpse. `curses` is ordered by line number and then by curse type.
+
+### `POST /api/seance`
+
+Extracts the business logic of the corpse into a Séance spec (requirements in EARS notation, a design, and input and output invariants).
+
+```json
+{
+  "ok": true,
+  "source": "generated",
+  "seance": {
+    "id": "...",
+    "requirementsMd": "...",
+    "designMd": "...",
+    "invariants": { "entry_function": "...", "input": "...", "output": "...", "invariants": ["..."] },
+    "approvedAt": null
+  },
+  "corpse": { "id": "...", "status": "IN_SEANCE" }
+}
+```
+
+A new or copied spec moves a corpse from `INFECTED` to `IN_SEANCE`. `approvedAt` stays `null` here: the approval control belongs to the resurrection screens.
+
+### `POST /api/reincarnate`
+
+Generates a modern TypeScript module and a property-based test body from the stored Séance spec. It needs a stored Séance spec for the corpse. The generated code is parsed and type-checked in memory and is never run.
+
+```json
+{
+  "ok": true,
+  "source": "generated",
+  "reincarnation": {
+    "id": "...",
+    "targetStack": "TypeScript (strict, ES2022)",
+    "modernCode": "...",
+    "pbtTestCode": "...",
+    "pbtPassed": null,
+    "totalRuns": null,
+    "executionTimeMs": null,
+    "createdAt": "...",
+    "verification": "NOT_RUN",
+    "evidence": null
+  },
+  "corpse": { "id": "...", "status": "INFECTED" }
+}
+```
+
+`verification` is `VERIFIED`, `FAILED`, or `NOT_RUN`. `evidence` holds the one sentence that states a verification outcome, with the exact run count, and only when a stored run passed. Results are empirical evidence from generated inputs and never a statement about all inputs. User corpses are generated but not executed until `08-live-verification-api` enables live verification (which builds on `07-sandboxed-execution`), so a new reincarnation of a user corpse is always `NOT_RUN`.
+
+### Limits
+
+| Limit | Value | Where it lives |
+|---|---|---|
+| User_Quota | 20 reservations per user per rolling 60 minutes, counted across `/api/seance` and `/api/reincarnate` | `apps/web/src/lib/pipeline/limits.ts` (`LIMITS.userQuota`) |
+| Global_Quota | 500 reservations in total per rolling 24 hours | `apps/web/src/lib/pipeline/limits.ts` (`LIMITS.globalQuota`) |
+
+The database function `public.reserve_llm_call` receives both values as arguments and records one row per reservation, so changing a value needs no migration. A request that fails after its reservation still counts. One reservation covers at most two model calls. Other limits (source size 20,000 bytes, 45 seconds per model call, a 100 second deadline per request) are in the same file.
+
+### Model settings
+
+The model variables are read only on the server and only when a request needs the model. Without them the three routes still serve stored, cached, and precomputed results and scan requests.
+
+| Variable | Use |
+|---|---|
+| `GROQ_API_KEY` | Groq API key. Required for new Séance and reincarnation results. |
+| `LLM_MODEL` | Groq model id. Defaults to `openai/gpt-oss-120b`. |
+| `GOOGLE_GENERATIVE_AI_API_KEY`, `LLM_FALLBACK_MODEL` | Optional pair. When both are set, one failed Groq call can be retried once on this Google model. |
+
+### Error codes
+
+A failed request returns `{ "ok": false, "error": { "code": "...", "message": "..." } }` with a fixed English message for each code.
+
+| Code | Status | When it happens |
+|---|---|---|
+| `INVALID_REQUEST` | 400 | The body is not a JSON object with exactly one key, `corpseId`, that holds a UUID. |
+| `AUTH_REQUIRED` | 401 | A visitor asked for a corpse that is not a visible sample. |
+| `FORBIDDEN_ORIGIN` | 403 | The `Origin` header is missing or is not the origin of the app. |
+| `NOT_FOUND` | 404 | A member asked for a corpse that does not exist or belongs to someone else. |
+| `NOT_PRECOMPUTED` | 404 | A sample corpse has no stored result for this route. |
+| `METHOD_NOT_ALLOWED` | 405 | The HTTP method is not `POST`. |
+| `SEANCE_REQUIRED` | 409 | Reincarnation was requested for a corpse that has no Séance spec yet. |
+| `REQUEST_TOO_LARGE` | 413 | The request body is larger than 1,024 bytes. |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | The `Content-Type` is not `application/json`. |
+| `SOURCE_TOO_LARGE` | 422 | The legacy code is larger than 20,000 bytes of UTF-8. |
+| `SOURCE_SYNTAX_ERROR` | 422 | The legacy code has a syntax error (a scan response adds the line and column). |
+| `SOURCE_NOT_SCANNABLE` | 422 | The scanner could not analyze the code because of its size, nesting, or analysis time. |
+| `NO_ENTRY_FUNCTION` | 422 | The code has no top-level named function declaration to use as the entry function. |
+| `RATE_LIMITED` | 429 | The user or the whole service reached its limit of generation requests (see the `Retry-After` header). |
+| `INTERNAL_ERROR` | 500 | An unexpected error occurred, the session or the corpse could not be read, or no safe prompt delimiter could be chosen. |
+| `PERSISTENCE_FAILED` | 500 | A cached, copied, or generated result could not be stored or read. |
+| `LLM_OUTPUT_INVALID` | 502 | The model output still failed validation after the one allowed second call. |
+| `LLM_PROVIDER_ERROR` | 502 | The model provider failed and no second call was allowed. |
+| `LLM_NOT_CONFIGURED` | 503 | The model key is missing or invalid, or the provider rejected it. |
+| `QUOTA_UNAVAILABLE` | 503 | The request limit could not be checked, so no model was called. |
+| `LLM_TIMEOUT` | 504 | The model did not answer in time, or the 100 second request deadline passed. |
+
+### Server-only check
+
+On 2026-11-13 a throwaway Client Component that imported `lib/pipeline/log.ts` made `pnpm --filter @lazarus/web build` fail with exit code 1 and an error that names that import. After the probe was removed the build passed again.
+
+## Verification API
+
+`POST /api/verify` runs the property-based test of a reincarnation against its legacy code in the Sandbox_Runner of `packages/sandbox-runner`, and stores the verdict on the `reincarnations` row. It shares the request checks, the access rules, the error envelope, and the cache header of the Pipeline API.
+
+### Request and response
+
+The body is `{ "corpseId": "<uuid>" }` and nothing else. The route takes the code, the test, and the entry function only from the database rows of the corpse, read under RLS, never from the request.
+
+A successful response has status 200 and this shape:
+
+```json
+{
+  "ok": true,
+  "source": "executed",
+  "reincarnation": {
+    "id": "<uuid>",
+    "targetStack": "TypeScript 6 (strict mode, ES2022)",
+    "pbtPassed": true,
+    "totalRuns": 1000,
+    "executionTimeMs": 512,
+    "verification": "VERIFIED",
+    "evidence": "Verified behavioral equivalence across 1,000 generated inputs."
+  },
+  "corpse": { "id": "<uuid>", "status": "RESURRECTED" }
+}
+```
+
+The values come from the stored row after the request, never directly from the sandbox result. `source` is one of:
+
+| Source | Meaning |
+|---|---|
+| `precomputed` | The corpse is a sample. Its stored result is returned and nothing runs. |
+| `stored` | The corpse already has a verdict (`pbt_passed` is not NULL). It is returned and nothing runs. |
+| `executed` | This request ran the sandbox and stored the result. |
+
+### Flow
+
+For a corpse of the signed-in member the route checks, in this order, and answers with the first step that applies:
+
+1. The caller is a verified member.
+2. The corpse belongs to the caller.
+3. The `reincarnations` row of the corpse exists (otherwise `REINCARNATION_REQUIRED`).
+4. The row already has a verdict (then `stored`).
+5. Verification is enabled (otherwise `VERIFICATION_DISABLED`).
+6. The entry function can be read from `invariants_json` of the Séance spec (otherwise `SEANCE_REQUIRED`).
+7. The quota is reserved (otherwise `RATE_LIMITED` or `QUOTA_UNAVAILABLE`).
+8. The Gate of the Sandbox_Runner grants a Lease and the run completes.
+9. The result is stored through `record_verification`.
+
+A visitor gets `precomputed` for a visible sample and `AUTH_REQUIRED` for anything else. The sample, `stored`, and visitor paths never read the kill switch, never reserve quota, and never call the sandbox.
+
+### Limits
+
+The values are in `apps/web/src/lib/verification/limits.ts`:
+
+- 10 verification runs per user in a rolling 60 minutes.
+- 100 verification runs in total in a rolling 24 hours.
+- 1,000 generated inputs per run, with a seed chosen by the server.
+- 1 concurrent run per user and 4 in total.
+
+Each run that passes the quota step uses one unit of quota, whatever its outcome. The concurrency limits apply per server process, not across instances, and a development hot reload resets them.
+
+### Execution switches
+
+- `USER_EXECUTION_ENABLED` in `apps/web/src/lib/verification/flags.ts` is shipped as `false`. While it is `false`, every request that reaches step 5 answers `VERIFICATION_DISABLED` and nothing runs. Flipping it is a deliberate, reviewed code change that a maintainer makes only after the hardening recommended in the Threat_Model of `07-sandboxed-execution` is judged adequate for the intended audience.
+- `LAZARUS_SANDBOX_KILL_SWITCH` is a server-only emergency stop. A value of `1` or `true` (any case, surrounding spaces ignored) engages it; unset, empty, `0`, or `false` leaves it off. Any other value is invalid and is treated as engaged (fail closed); the server configuration check reports it without its value. The route reads it on every request before the quota step, so engaging it stops new runs without a code change.
+
+### Evidence and limitations
+
+A result is empirical evidence from randomly generated inputs: `VERIFIED` means the legacy and modern versions agreed on every one of the `total_runs` inputs that were tried (1,000 for a run of this route). It is not an exhaustive check of every possible input. Known limitations:
+
+- (a) The verdict is visible only to the owner of the corpse under RLS, and it is not an attestation for anyone else.
+- (b) An owner with direct table access, or a call to `record_verification` with chosen arguments, could write the same columns, because the owner UPDATE policy of the Foundation allows it.
+- (c) Code under test can influence the verdict of its own run, as the Threat_Model of `07-sandboxed-execution` states.
+- (d) A `VERIFIED` or `FAILED` result is final: this route never runs that corpse again and never regenerates its reincarnation.
+- (e) An inconclusive outcome (a timeout, a memory limit, a compile error, or a forbidden capability) stores nothing and still uses one unit of quota, so a corpse whose code never completes a run stays unverified.
+- (f) The concurrency limits apply per server process.
+- (g) Neither the seed nor the counterexample is stored or returned. The seed is written only to the server log line `verification_run`.
+
+### Future hardening
+
+An optional future change, not part of this spec, is to move the verdict write behind a database function that only a trusted server identity can execute, together with column-level privileges that stop the owner from updating the verdict columns directly. It is not in this spec because it needs either a service role key (forbidden by Requirement 7 of 04 and Requirement 1 criterion 5 of 05) or a signing secret, and a change of the grants and policies of the Foundation.
+
+### Reproducing a run
+
+To reproduce a failed or surprising run, a maintainer works in a trusted environment (never in the web app):
+
+1. Take `original_code` from the `corpses` row, and `modern_code` and `pbt_test_code` from the `reincarnations` row.
+2. Take the entry function from `entry_function` in `invariants_json` of the `seance_specs` row.
+3. Take the `seed` from the `verification_run` log line of that request.
+4. Call `runSandboxedVerification` of `@lazarus/sandbox-runner` with that code, test, and entry function, `numRuns` 1,000, and the seed. The same inputs give the same status and the same counterexample input.
+
+### Verification error codes
+
+A failed request returns `{ "ok": false, "error": { "code": "...", "message": "..." } }` with a fixed English message. `RATE_LIMITED` and `VERIFICATION_BUSY` also set `Retry-After`.
+
+| Code | Status | When it happens |
+|---|---|---|
+| `INVALID_REQUEST` | 400 | The body is not a JSON object with exactly one key, `corpseId`, that holds a UUID. |
+| `AUTH_REQUIRED` | 401 | A visitor asked for a corpse that is not a visible sample. |
+| `FORBIDDEN_ORIGIN` | 403 | The `Origin` header is missing or is not the origin of the app. |
+| `NOT_FOUND` | 404 | A member asked for a corpse that does not exist or belongs to someone else. |
+| `NOT_PRECOMPUTED` | 404 | A sample corpse has no stored verification result. |
+| `METHOD_NOT_ALLOWED` | 405 | The HTTP method is not `POST`. |
+| `SEANCE_REQUIRED` | 409 | The corpse has no Séance spec with an entry function. |
+| `REINCARNATION_REQUIRED` | 409 | The corpse has no reincarnation to verify yet. |
+| `REQUEST_TOO_LARGE` | 413 | The request body is larger than 1,024 bytes. |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | The `Content-Type` is not `application/json`. |
+| `VERIFICATION_INCONCLUSIVE` | 422 | The run did not reach a verdict (for example a timeout or a memory limit), so nothing was stored. |
+| `RATE_LIMITED` | 429 | The user or the whole service reached its limit of verification runs (see the `Retry-After` header). |
+| `VERIFICATION_BUSY` | 429 | The user already has a run in progress or the server is at its concurrency limit (see the `Retry-After` header). |
+| `INTERNAL_ERROR` | 500 | An unexpected error occurred, or the session or the corpse could not be read. |
+| `PERSISTENCE_FAILED` | 500 | The result of a run could not be stored or read back. |
+| `QUOTA_UNAVAILABLE` | 503 | The run limit could not be checked, so nothing ran. |
+| `VERIFICATION_DISABLED` | 503 | Live verification is turned off by the execution flag or the kill switch. |
+| `SANDBOX_UNAVAILABLE` | 503 | The Sandbox_Runner could not be loaded or started. |
+
+## Resurrection stages
+
+The corpse page (`/corpses/[id]`) shows the three stages of the workflow below the legacy source. The old "Next stages" placeholder is gone. This section adds no environment variable, no route, no table, and no dependency.
+
+Everything on the page is read from the database with the Supabase client of the request, so Row Level Security decides what is visible. After a successful action the page only calls `router.refresh()`: it never renders the body of an API response, and the stored rows are the single source of truth. All stored text (curses, spec, code, stack) is shown as plain text, so markup in it appears as characters.
+
+### The three sections
+
+| Section | What it shows |
+|---|---|
+| Hex Scanner (`#hex-scanner`) | The stored curses with their exact line numbers, a summary by severity and by type, and a link from each "Line N" to that line of the legacy source. A line that has a curse is marked in the source and carries the hidden text "Curse on this line". |
+| Séance Chamber (`#seance-chamber`) | The extracted requirements (EARS criteria with the keywords in bold), the design, the input and output invariants, and the approval state ("Approved on YYYY-MM-DD" or "Not approved yet"). |
+| Laboratory (`#laboratory`) | The verification result first, then the resurrected TypeScript, and the property-based test in a disclosure that is collapsed by default. |
+
+A navigation block above the sections links to each one and states its state in words. The overview and the sections are in the server-rendered HTML, so the page stays readable without JavaScript.
+
+### Who sees which controls
+
+| Viewer | Controls |
+|---|---|
+| Visitor (not signed in) | None. The page holds no button, no form, and no request to `/api/`. It shows a notice that the results are precomputed and read-only, with a link to sign in. A visitor can never start a model call. |
+| Member looking at a sample | None. The notice says that sample results are precomputed and read-only. |
+| Owner of the corpse | The scan, the start of the séance, the approval, the start of the reincarnation, and "Verify live", each only while it makes sense for what is stored. A control that is not available shows its reason, for example "Approve the séance spec to enable reincarnation." A result that already exists is never offered for regeneration. |
+
+### Verification states
+
+The Laboratory states one of four states, computed from the stored columns `pbt_passed` and `total_runs`:
+
+| State | When | What the page says |
+|---|---|---|
+| `VERIFIED` | `pbt_passed` is true and `total_runs` is a positive integer | "Verified behavioral equivalence across N generated inputs." with the exact count and a comma as the thousands separator, then a note that this is empirical evidence from randomly generated inputs and that other inputs were not checked. |
+| `FAILED` | `pbt_passed` is false | "The modern function differed from the legacy function." and, when the count is stored, how many generated inputs were checked. |
+| `NOT_RUN` | `pbt_passed` is NULL | "Not verified yet." |
+| `INCOMPLETE` | `pbt_passed` is true without a valid run count | "A passing result is stored without a run count, so no evidence is shown." |
+
+Only `VERIFIED` uses the emerald color, and the state is always written as text. The page never uses the `evidence` field of an API response.
+
+### Verify live
+
+"Verify live" runs the legacy and the modern function in an isolated environment on generated inputs. It calls `POST /api/verify` (see the Verification API section). It appears only for the owner of a corpse that has a stored reincarnation in the state `NOT_RUN`. It does not appear for `VERIFIED`, `FAILED`, or `INCOMPLETE`, because those are final results that the route never replaces, and it does not appear for a visitor or for a member looking at a sample.
+
+The control stays visible and enabled even when the server has live verification switched off, which is the default. What each failure message means:
+
+| Message | Code | Meaning |
+|---|---|---|
+| "Live verification is switched off on this server. Nothing was run." | `VERIFICATION_DISABLED` | The server keeps user execution disabled, or the kill switch is engaged. Nothing ran and nothing was stored. |
+| "The verification service is busy." | `VERIFICATION_BUSY` | A run of this user is in progress, or the server is at its concurrency limit. The control waits for the `Retry-After` time when the server sends one. |
+| "The verification limit was reached." | `RATE_LIMITED` | The separate verification limit was reached. The control waits for the `Retry-After` time when the server sends one. |
+| "The check could not complete ... No result was stored." | `VERIFICATION_INCONCLUSIVE` | The run ended without a verdict, for example because it ran out of time or memory. The attempt may count toward the limit. |
+| "The isolated environment is not available right now. Nothing was run." | `SANDBOX_UNAVAILABLE` | The isolated environment could not start. |
+| "Generate the module first, then verify it." | `REINCARNATION_REQUIRED` | The corpse has no reincarnation yet. |
+
+The numbers of the verification limit belong to the Verification API and are not repeated here. The browser waits at most 70 seconds for this route, which is longer than the 60 second deadline of the server. If the wait ends first, reload the page to see what was stored.
+
+### Approval gate
+
+The reincarnation control is offered only for an approved séance. This is a restriction of the page and nothing more: `POST /api/reincarnate` does not check `approved_at`, so a direct API client can start a reincarnation without approval. This is intended. The gate is a review step that this page asks of the owner, and no check on the server is planned. A séance copied from a stored result for identical code starts unapproved, so approve the copy before reincarnation.
+
+### Streaming
+
+The routes return one JSON document and can take up to about two minutes, so the page shows an indeterminate pending message while a request runs. It does not stream progress, and no spec plans to. Adding streaming would need changes to the routes first.
+
+### Troubleshooting
+
+- A sample shows "No curses are stored", "No séance is stored", or "No reincarnation is stored": the sample rows come from the database migrations. Run `pnpm db:migrate`.
+- The scan, the séance, and the reincarnation answer with "The service is unavailable right now": they need the Pipeline API and its configuration (see the Pipeline API section, including the model settings).
+- "Verify live" answers that live verification is switched off: the Verification API is deployed, but the server keeps user execution disabled, which is the default. Turning it on is a reviewed code change and is described in the Verification API section.
+- A button stays disabled: a request is pending, or the server asked the page to wait. The message under the button says which.
+
+### Manual verification
+
+The automated tests render the sections to static markup and test the logic of the controls. These checks need a real project with the Pipeline API and the Verification API deployed:
+
+1. As a visitor, open each sample. Check the three sections and the exact run count, and check that the Network tab shows no request to `/api/`.
+2. Sign in, import legacy code, and run the scan. Check the curses, the marked lines in the source, and the "Line N" links.
+3. Begin the séance, read the spec, approve it, and begin the reincarnation. The Laboratory should show "Not verified yet." and a "Verify live" button.
+4. Press "Verify live". With live verification switched off, expect the message that it is switched off, and expect the button to stay enabled. With it switched on, expect the evidence block with the exact run count, or the text for a failed run.
+5. Import the same code again as a second corpse and begin the séance. Expect the message that a stored result was reused and that no model request was made.
+6. Reach a request limit and check the waiting message and the disabled button.
+7. Use only the keyboard, switch on reduced motion, throttle the network to see the pending state, and check a viewport of 360 px width.

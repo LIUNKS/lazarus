@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 import { CodeView } from '@/components/code-view';
-import { CurseList } from '@/components/curse-list';
 import { DeleteCorpseButton } from '@/components/delete-corpse-button';
 import { ErrorState } from '@/components/error-state';
 import { LanguageBadge } from '@/components/language-badge';
-import { NextStages } from '@/components/next-stages';
 import { Notice } from '@/components/notice';
+import { StageSections } from '@/components/stages/stage-sections';
+import { StagesSkeleton } from '@/components/stages/stages-skeleton';
 import { StatusBadge } from '@/components/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { getViewer } from '@/lib/auth/viewer';
@@ -13,7 +14,8 @@ import { loadCorpse } from '@/lib/data/load-corpse';
 import type { CorpseDetail } from '@/lib/data/types';
 import { firstParam, noticeMessage } from '@/lib/messages';
 import { isUuid } from '@/lib/security/uuid';
-import { formatDateUtc, pluralize } from '@/lib/ui/format';
+import { buildScannerView, countSourceLines } from '@/lib/stages/scanner-view';
+import { formatDateUtc } from '@/lib/ui/format';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Corpse' };
@@ -49,6 +51,8 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
   const viewer = await getViewer();
   const isOwner = viewer !== null && !corpse.isSample && corpse.userId === viewer.member.id;
   const notice = noticeMessage(firstParam((await searchParams)['notice']));
+  // The curses are part of the corpse query, so the lines of the source are marked without waiting for the stage data.
+  const scannerView = buildScannerView(corpse.curses, countSourceLines(corpse.originalCode));
 
   return (
     <article className="space-y-8">
@@ -78,18 +82,12 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
         <h2 id="source-heading" className="text-xl font-semibold">
           Legacy source
         </h2>
-        <CodeView code={corpse.originalCode} />
+        <CodeView code={corpse.originalCode} markedLines={scannerView.markedLines} />
       </section>
 
-      <section className="space-y-3" aria-labelledby="curses-heading">
-        <h2 id="curses-heading" className="text-xl font-semibold">
-          Stored curses
-        </h2>
-        <p className="text-sm text-muted-foreground">{pluralize(corpse.curseCount, 'curse')} stored for this corpse.</p>
-        <CurseList curses={corpse.curses} />
-      </section>
-
-      <NextStages />
+      <Suspense fallback={<StagesSkeleton />}>
+        <StageSections corpse={corpse} viewer={viewer} scannerView={scannerView} />
+      </Suspense>
     </article>
   );
 }

@@ -1,3 +1,5 @@
+import { StagesSkeleton } from '@/components/stages/stages-skeleton';
+
 export default function Loading() {
   return (
     <div aria-busy="true" aria-live="polite" className="space-y-8">
@@ -7,6 +9,7 @@ export default function Loading() {
         <div className="h-5 w-1/3 animate-pulse rounded bg-card" />
       </div>
       <div className="h-80 animate-pulse rounded-lg border border-border bg-card" />
+      <StagesSkeleton />
     </div>
   );
 }

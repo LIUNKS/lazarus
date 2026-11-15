@@ -21,7 +21,7 @@ The steering documents `product.md`, `tech.md`, `structure.md`, and `database-an
 - **Workspace_Root**: The repository root `lazarus/`.
 - **Root_Env_Files**: The files `.env` and `.env.local` at the Workspace_Root.
 - **Public_Config**: The variables `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-- **Server_Only_Variables**: `SUPABASE_SERVICE_ROLE_KEY`, every `FLYWAY_*` variable, `TEST_DATABASE_URL`, `GROQ_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, and `LLM_MODEL`.
+- **Server_Only_Variables**: `SUPABASE_SERVICE_ROLE_KEY`, every `FLYWAY_*` variable, `TEST_DATABASE_URL`, `GROQ_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `LLM_MODEL`, `LLM_FALLBACK_MODEL`, and `LAZARUS_SANDBOX_KILL_SWITCH` (the last two are added by the amendments of specs 05 and 08).
 - **Browser_Client**: The Supabase client created with `createBrowserClient` from `@supabase/ssr`, used in Client Components.
 - **Server_Client**: The Supabase client created per request with `createServerClient` from `@supabase/ssr`, used in Server Components, Server Actions, and Route Handlers.
 - **Proxy**: The Next.js 16 file `proxy.ts` (the successor of `middleware.ts`) that refreshes the Supabase session on each matched request.
@@ -73,6 +73,8 @@ The steering documents `product.md`, `tech.md`, `structure.md`, and `database-an
 6. THE Web_App SHALL NOT use a variable whose name has the prefix `NEXT_PUBLIC_` followed by the name of a Server_Only_Variable.
 7. THE Web_App SHALL NOT read `SUPABASE_SERVICE_ROLE_KEY`, and no module of the Web_App SHALL create a Supabase client with the service role key.
 8. THE Web_App SHALL NOT log, render, or serialize into a response the value of `NEXT_PUBLIC_SUPABASE_ANON_KEY` outside the Browser_Client and Server_Client constructors.
+9. (Amendment, spec 08.) WHERE a later spec needs a Server_Only_Variable, THE Web_App SHALL read it only in a server-only module that begins with `import 'server-only'` (`apps/web/src/lib/env-server.ts` for `LAZARUS_SANDBOX_KILL_SWITCH`), so that `lib/env.ts` stays client-safe and the Public_Config validation of criteria 2 to 4 is unchanged. Criterion 5 remains in force.
+10. (Amendment, spec 08.) THE optional Server_Only_Variable `LAZARUS_SANDBOX_KILL_SWITCH` SHALL be validated as follows: a trimmed, case-insensitive value of `1` or `true` is engaged; unset, blank, `0`, or `false` is not engaged; any other value is invalid and SHALL be treated as engaged (fail closed). THE validation SHALL report an invalid value by variable name and reason only, SHALL never include the value in a problem list, log line, response, or error object, and SHALL NOT trigger the configuration error page of criterion 4, because an invalid kill switch only disables live verification and must not take the site down.
 
 ### Requirement 3: Theme, layout, and accessibility
 
@@ -270,7 +272,7 @@ The steering documents `product.md`, `tech.md`, `structure.md`, and `database-an
 1. THE Web_App SHALL provide `apps/web/README.md` in English that lists the commands to run the app (`pnpm --filter @lazarus/web dev`, `build`, and `start`) and the variables it needs, referring to `.env.example`.
 2. THE README SHALL describe the GitHub OAuth setup: create a GitHub OAuth application whose callback URL is the Supabase Auth callback (`https://<project-ref>.supabase.co/auth/v1/callback`), enable the GitHub provider in the Supabase dashboard with the client id and secret, and add `http://localhost:3000/auth/callback` and the deployed `/auth/callback` URL to the Supabase redirect URL allowlist.
 3. THE README SHALL state that Judge_Mode needs no sign-in, that the samples need the Foundation migrations to be applied (`pnpm db:migrate`), and that the app never uses the service role key.
-4. THE Web_App SHALL document in `.env.example` any new variable it reads, and SHALL NOT add a variable other than Public_Config.
+4. THE Web_App SHALL document in `.env.example` any new variable it reads, and SHALL NOT add a variable other than Public_Config. (Amendment: the Server_Only_Variables that later specs read, namely the LLM variables of spec 05 and `LAZARUS_SANDBOX_KILL_SWITCH` of spec 08, are documented in `.env.example` by those specs.)
 
 ### Requirement 17: Scope boundary
 
