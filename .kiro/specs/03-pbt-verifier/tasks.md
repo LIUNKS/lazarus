@@ -148,9 +148,14 @@
   - Describe results as Empirical_Evidence and never claim a mathematical proof
   - _Requirements: 3.6, 10.6_
 
-- [ ] 11. Final checkpoint
+- [x] 11. Final checkpoint
   - Run `pnpm lint`, `pnpm build`, and `pnpm test` from the repository root and confirm exit code 0 for all three
   - Confirm the package test suite finishes in less than 60 seconds
   - Re-read Requirements 1 to 12 and confirm every criterion maps to a completed task or test; list any criterion that could not be verified
   - Confirm no file outside `packages/pbt-verifier/` changed, apart from the lockfile
+  - Status (run after the merge of spec 08):
+    - `pnpm lint` and `pnpm build` from the repository root exit with code 0. The package suite passes with 216 tests in 8 files in about 25 s, below the 60 s limit of Requirement 12 criterion 10. `pnpm test` from the root also exits with code 0 when the timeout fix of the slow `sandbox-runner` tests is applied (pull request `fix/sandbox-runner-test-timeouts`). That fix belongs to 07 and is not part of this package.
+    - Scope: the only commit of this spec, `878aa45`, changed 42 files, all under `packages/pbt-verifier/` except `pnpm-lock.yaml`. Spec 07 later added `src/shared.ts` and edited `package.json` and `src/sandbox/modern-loader.ts` in this package, which is its own change.
+    - Criteria: 96 criteria, 92 cited by a task. The 4 not cited by any task are 1.9 (English only), 1.10 (no stdout or stderr writes), 6.9 (a returned Promise is not awaited), and 11.4 (outcome comparison rules of `database-and-exorcism.md`). Criterion 1.10 has zero `console` or `process.stdout` uses in the runtime sources, criterion 6.9 has the test `R6.9` in `equivalence.test.ts`, criterion 11.4 is the Requirement 6 rules that the equivalence tests cover, and criterion 1.9 was only checked as no non-ASCII character in `src/` and `README.md`, which is a weak check.
+    - 76 criteria have an `R<n>.<m>` id in a test name. Of the other 20, criteria 1.1 to 1.8, 1.10, 2.2, 3.1, 3.6, 7.6, 10.1, 10.6, and 12.1 were verified by inspecting `package.json`, the configuration files, the sources, and the README (7.6: `fc.check` receives `numRuns` and `seed` in `src/run/execute.ts`). Criteria 1.9, 11.2, 11.4, and 12.10 were not verified directly: 12.10 holds as measured above, and 11.2 is exercised with the three fixtures under `test/fixtures/`, which were not compared with the seeded `pbt_test_code` rows.
   - _Requirements: 1.2, 1.5, 12.1, 12.10_
