@@ -188,6 +188,11 @@ async function loadSide(side: Side, code: string): Promise<LoadedSide> {
       ? `typeof ${entryName} === "function" ? ${entryName} : undefined`
       : `typeof exports === "object" && exports !== null && typeof exports.${entryName} === "function" ? exports.${entryName} : undefined`;
   const bound = evaluate(loaded.context, `${loaded.apiName}("bind", ${lookup})`, remaining());
+  // The lookup is a vm call under the same time budget as the load. When that budget runs out here (a busy host, or code whose
+  // entry point is a getter that never returns), the run timed out. It is not a missing function, so it must not be reported as one.
+  if (!bound.ok && bound.kind === 'timeout') {
+    finish(errorText('SANDBOX_TIMEOUT', `The ${side} code did not finish loading within the time limit.`));
+  }
   if (!bound.ok || bound.value !== true) {
     finish(
       errorText(
