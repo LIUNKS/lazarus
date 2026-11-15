@@ -23,95 +23,111 @@
     - Update the existing corpse tests for the new curse fields; cover the stage queries' filters, ordering, and `limit`, `parseInvariants` accept and reject cases, NULL columns, wrong types, and the generic `DataError`
     - _Requirements: 2.2 to 2.6, 16.7_
 
-- [ ] 2. Pure view models (no `next/*`, no `react`, no `process.env`)
-  - [ ] 2.1 Write `src/lib/stages/wording.ts` (`FORBIDDEN_TERMS`, `containsForbiddenTerm`) and `format.ts` (`formatRunCount`, `formatDuration`, `formatRetryAfter`)
+- [x] 2. Pure view models (no `next/*`, no `react`, no `process.env`)
+  - [x] 2.1 Write `src/lib/stages/wording.ts` (`FORBIDDEN_TERMS`, `containsForbiddenTerm`) and `format.ts` (`formatRunCount`, `formatDuration`, `formatRetryAfter`)
+    - Note: `formatRunCount` groups the digits with a regular expression instead of `Intl.NumberFormat('en-US')` (the design suggests the latter). The result is the same for every integer, and it does not depend on the ICU data of the runtime, so the server and the browser always print the same text.
     - _Requirements: 6.2, 6.9, 11.4, 14.5_
-  - [ ] 2.2 Write `src/lib/stages/spec-markdown.ts` (`parseSpecMarkdown`, `parseInline`, `serializeInline`)
+  - [x] 2.2 Write `src/lib/stages/spec-markdown.ts` (`parseSpecMarkdown`, `parseInline`, `serializeInline`)
     - _Requirements: 4.1, 4.2, 4.7, 14.1_
-  - [ ] 2.3 Write `src/lib/stages/verification.ts` (`buildVerificationView`, state labels)
+  - [x] 2.3 Write `src/lib/stages/verification.ts` (`buildVerificationView`, state labels)
     - _Requirements: 6.1 to 6.8_
-  - [ ] 2.4 Write `src/lib/stages/scanner-view.ts` (`buildScannerView`, `countSourceLines`, `curseLabel`)
+  - [x] 2.4 Write `src/lib/stages/scanner-view.ts` (`buildScannerView`, `countSourceLines`, `curseLabel`)
     - _Requirements: 3.1 to 3.5_
-  - [ ] 2.5 Write `src/lib/stages/controls.ts` (`resolveAccess`, `stageControls`, `summarizeStages`); state in the doc comment of `stageControls` that the approval condition of the reincarnation control is a UI-level restriction only and that the Reincarnate_Route does not enforce it
+  - [x] 2.5 Write `src/lib/stages/controls.ts` (`resolveAccess`, `stageControls`, `summarizeStages`); state in the doc comment of `stageControls` that the approval condition of the reincarnation control is a UI-level restriction only and that the Reincarnate_Route does not enforce it
     - _Requirements: 1.3, 1.4, 7.1, 7.4, 7.6, 8.1 to 8.7, 8.10_
-  - [ ] 2.6 Write `src/lib/stages/errors.ts` and `pipeline-client.ts` (`PIPELINE_ERROR_CODES`, `FAILURE_PRESENTATIONS` as an exhaustive `Record`, `presentFailure`, `presentSuccess`, `parseOutcome`, `parseRetryAfter`, `runPipeline` with injected `fetch`)
+  - [x] 2.6 Write `src/lib/stages/errors.ts` and `pipeline-client.ts` (`PIPELINE_ERROR_CODES`, `FAILURE_PRESENTATIONS` as an exhaustive `Record`, `presentFailure`, `presentSuccess`, `parseOutcome`, `parseRetryAfter`, `runPipeline` with injected `fetch`)
     - _Requirements: 9.1, 9.2, 9.4, 9.6, 9.7, 10.2, 11.1 to 11.7, 11.9_
-  - [ ] 2.7 Write `src/lib/stages/action-state.ts` (`actionReducer`, `isLocked`)
+  - [x] 2.7 Write `src/lib/stages/action-state.ts` (`actionReducer`, `isLocked`)
     - _Requirements: 9.3, 9.5, 11.4, 11.8_
-  - [ ] 2.8 Write tests for wording, formatting, and verification
+  - [x] 2.8 Write tests for wording, formatting, and verification
     - Property 1 (verification and evidence, `numRuns` 300); examples for `1000`, `100`, `1234567`; one example per state with the exact strings; `INCOMPLETE` case
     - _Requirements: 6.1 to 6.9, 16.2, 16.3_
-  - [ ] 2.9 Write tests for the Spec_Markdown parser
+  - [x] 2.9 Write tests for the Spec_Markdown parser
     - Properties 3 and 4 (round trip and totality, EARS detection; `numRuns` 200); examples with fences, headings, unclosed fence, unbalanced backticks, `<script>` text
     - _Requirements: 4.1, 4.2, 4.7, 16.2_
-  - [ ] 2.10 Write tests for the scanner view and the stage controls
+  - [x] 2.10 Write tests for the scanner view and the stage controls
     - Property 7 (scanner view, `numRuns` 200) and Property 2 (controls gating over all access and fact combinations, including every `verificationState`, `numRuns` 200); examples for the summary words and the owner reasons. Write them against the final `StageFacts` of task 2.14
     - _Requirements: 3.1 to 3.5, 7.1, 8.1 to 8.7, 8.9, 16.2_
-  - [ ] 2.11 Write tests for outcome parsing, error presentation, retry formatting, `runPipeline`, and the reducer
+  - [x] 2.11 Write tests for outcome parsing, error presentation, retry formatting, `runPipeline`, and the reducer
     - Properties 5, 6, 8 (`numRuns` 200); the `Retry-After` examples of Requirement 16.5 (for `RATE_LIMITED` and `VERIFICATION_BUSY`); every one of the 26 codes has a message; unknown code and non-JSON give the generic message; `runPipeline` request shape, network failure, and timeout with a short `timeoutMs`. Write them against the final signatures of tasks 2.12 and 2.13 (`parseOutcome(route, ...)`, `presentFailure(outcome, route)`)
     - _Requirements: 9.1, 9.3, 9.4, 9.6, 9.7, 11.1 to 11.4, 16.2, 16.5_
-  - [ ] 2.12 Extend the pipeline client with the `verify` route (`src/lib/stages/pipeline-client.ts`, `errors.ts`)
+  - [x] 2.12 Extend the pipeline client with the `verify` route (`src/lib/stages/pipeline-client.ts`, `errors.ts`)
     - Add `verify: '/api/verify'` to `PIPELINE_PATHS`; add the named constant `VERIFY_CLIENT_TIMEOUT_MS = 70_000` (greater than the 60 s server deadline of spec 08) and `clientTimeoutFor(route)`; turn `RESULT_SOURCES` into the per-route map (`executed` only for `verify`, `generated` and `cache` only for the other routes) with `isResultSource(route, value)`; change `parseOutcome` to take the route and to ignore every field of the success body except `ok` and `source`; make `runPipeline` use `clientTimeoutFor(route)`; add the three `verify` messages to `presentSuccess`
+    - Note: tasks 2.6, 2.12, 2.13, and 2.14 were written in their final form in one pass, because their signatures depend on each other (`parseOutcome(route, ...)`, `presentFailure(outcome, route)`, `StageFacts.verificationState`). `runPipeline` sends nothing when the caller's signal is already aborted (it returns `NETWORK` at once). `presentSuccess` gives `scan` with `precomputed` the text "The stored scan result is shown.", as the design lists for scan, and `scan` with `cache` (a pair no route sends) keeps the fallback "Done.".
     - _Requirements: 9.1, 9.4, 9.7, 10.2, 18.4, 18.5, 18.7, 18.8_
-  - [ ] 2.13 Add the five codes of spec 08 and the route-specific wording (`src/lib/stages/errors.ts`)
+  - [x] 2.13 Add the five codes of spec 08 and the route-specific wording (`src/lib/stages/errors.ts`)
     - Add `REINCARNATION_REQUIRED`, `VERIFICATION_DISABLED`, `VERIFICATION_BUSY`, `VERIFICATION_INCONCLUSIVE`, and `SANDBOX_UNAVAILABLE` to `PIPELINE_ERROR_CODES` (26 in total) and to the exhaustive `FAILURE_PRESENTATIONS` with the fixed texts of Requirement 11 criterion 10; add `ROUTE_FAILURE_OVERRIDES` so that `RATE_LIMITED` says "verification limit" for the route `verify`; change `presentFailure` to take the route; give `VERIFICATION_BUSY` the same `Retry-After` parsing and `waitSeconds` lock as `RATE_LIMITED`; make the reducer pass the route of the `finish` event to `presentFailure`; check the new texts against the Forbidden_Terms
     - _Requirements: 11.1, 11.4, 11.8, 11.9, 11.10, 11.11, 18.10, 18.11_
-  - [ ] 2.14 Add the `verify` control to the pure models (`controls.ts`, `verification.ts`)
+  - [x] 2.14 Add the `verify` control to the pure models (`controls.ts`, `verification.ts`)
     - Add `verificationState` to `StageFacts` and `verify` to `StageControls` (available only for `owner` with a Stored_Reincarnation in the state `NOT_RUN`; `{ available: false, reason: null }` otherwise); change `summarizeStages` to read the Laboratory state from `facts.verificationState`; add the `verifyAvailable` option to `buildVerificationView` (NOT_RUN headline "Not verified yet." without the "No property-based test result is stored" sentence when the control is available); add the verify help text constant and the pending text constant
     - _Requirements: 6.5, 8.1, 8.6, 8.8, 8.9, 18.1, 18.2, 18.3, 18.6_
-  - [ ] 2.15 Write tests for the verify additions (new file `src/lib/stages/verify-live.test.ts`)
+  - [x] 2.15 Write tests for the verify additions (new file `src/lib/stages/verify-live.test.ts`)
     - `stageControls` table tests for `verify` over every Stage_Access and `verificationState` (`NOT_RUN`, `VERIFIED`, `FAILED`, `INCOMPLETE`, `null`); per-route source examples and one property (`numRuns` 200, first line `// Feature: 06-resurrection-ui, Property 5: Outcome parsing is total and does not echo`, route drawn from all four); `runPipeline` for `verify` (path, body exactly `{"corpseId":"..."}`, timeout constant equals 70,000 and is greater than 60,000, short override); `executed` and `stored` success messages; the five new codes and the "verification limit" wording; `VERIFICATION_BUSY` lock until `retryAt`; the success body of `verify` with extra `reincarnation` and `corpse` objects yields only the source. Test names start with `R16.10`, `R18.n`, or `R11.n`
     - _Requirements: 8.9, 9.7, 11.10, 11.11, 16.9, 16.10, 18.4, 18.5, 18.7, 18.8, 18.11_
 
-- [ ] 3. Checkpoint: view models
-  - [ ] 3.1 Run `pnpm --filter @lazarus/web lint` and `pnpm --filter @lazarus/web test`; confirm exit code 0 before building components
+- [x] 3. Checkpoint: view models
+  - [x] 3.1 Run `pnpm --filter @lazarus/web lint` and `pnpm --filter @lazarus/web test`; confirm exit code 0 before building components
     - _Requirements: 16.1_
 
-- [ ] 4. Components and page integration
-  - [ ] 4.1 Extend `src/components/code-view.tsx` with `label`, `idPrefix`, and `markedLines` (defaults keep the 04 output; add line ids and the "Curse on this line" marker); make it use `countSourceLines`
+- [x] 4. Components and page integration
+  - [x] 4.1 Extend `src/components/code-view.tsx` with `label`, `idPrefix`, and `markedLines` (defaults keep the 04 output; add line ids and the "Curse on this line" marker); make it use `countSourceLines`
     - _Requirements: 3.5, 5.6, 13.4_
-  - [ ] 4.2 Write `hex-scanner-panel.tsx` (summary, entries, anchor links, empty text, owner scan control) and remove `curse-list.tsx`
+  - [x] 4.2 Write `hex-scanner-panel.tsx` (summary, entries, anchor links, empty text, owner scan control) and remove `curse-list.tsx`
     - _Requirements: 3.1 to 3.7, 7.1, 8.2, 13.4_
-  - [ ] 4.3 Write `spec-markdown.tsx` and `seance-panel.tsx` (requirements, design, invariants, approval line, unreadable-invariants text, empty state, owner controls and reasons)
+  - [x] 4.3 Write `spec-markdown.tsx` and `seance-panel.tsx` (requirements, design, invariants, approval line, unreadable-invariants text, empty state, owner controls and reasons)
     - _Requirements: 4.1 to 4.7, 8.3, 8.4, 8.7, 10.5, 14.1_
-  - [ ] 4.4 Write `verification-evidence.tsx` and `laboratory-panel.tsx` (evidence first, modern code, collapsed test code in `<details>`, stack and date, empty state, owner control or reason)
+  - [x] 4.4 Write `verification-evidence.tsx` and `laboratory-panel.tsx` (evidence first, modern code, collapsed test code in `<details>`, stack and date, empty state, owner control or reason)
     - _Requirements: 5.1 to 5.6, 6.2 to 6.7, 8.5, 8.7_
-  - [ ] 4.5 Write `stage-actions.tsx` (client): reducer, `runPipeline`, abort on unmount, timeout, `router.refresh()` once on success, status and alert regions, sign-in link for `AUTH_REQUIRED`, rate-limit wait timer (for `RATE_LIMITED` and `VERIFICATION_BUSY`), focus to the section heading, `data-stage-actions`, CSS-only indeterminate pending indicator (no progress value, no streaming), per-route timeout from `clientTimeoutFor(route)` (task 2.12)
+  - [x] 4.5 Write `stage-actions.tsx` (client): reducer, `runPipeline`, abort on unmount, timeout, `router.refresh()` once on success, status and alert regions, sign-in link for `AUTH_REQUIRED`, rate-limit wait timer (for `RATE_LIMITED` and `VERIFICATION_BUSY`), focus to the section heading, `data-stage-actions`, CSS-only indeterminate pending indicator (no progress value, no streaming), per-route timeout from `clientTimeoutFor(route)` (task 2.12)
     - _Requirements: 8.8, 9.1 to 9.9, 10.1 to 10.4, 11.1 to 11.9, 13.2, 13.3, 13.6, 15.4_
-  - [ ] 4.6 Add `approveSeance` to `src/app/corpses/actions.ts`, `approve-seance-form.tsx` (client, `useFormStatus`), and the notice codes `approved` and `approve-failed` in `lib/messages.ts`
+  - [x] 4.6 Add `approveSeance` to `src/app/corpses/actions.ts`, `approve-seance-form.tsx` (client, `useFormStatus`), and the notice codes `approved` and `approve-failed` in `lib/messages.ts`
     - _Requirements: 12.1 to 12.6, 14.3, 14.4_
-  - [ ] 4.7 Write `stage-sections.tsx` (build `StageFacts` with `verificationState` from `buildVerificationView(reincarnation).state`), `stage-overview.tsx`, `stage-section.tsx`, `readonly-notice.tsx`, and `stages-skeleton.tsx`; update `corpses/[id]/page.tsx` (Suspense, notices, scanner view for the source marks) and `loading.tsx`; remove `next-stages.tsx`; apply `Reveal` to the result blocks
+  - [x] 4.7 Write `stage-sections.tsx` (build `StageFacts` with `verificationState` from `buildVerificationView(reincarnation).state`), `stage-overview.tsx`, `stage-section.tsx`, `readonly-notice.tsx`, and `stages-skeleton.tsx`; update `corpses/[id]/page.tsx` (Suspense, notices, scanner view for the source marks) and `loading.tsx`; remove `next-stages.tsx`; apply `Reveal` to the result blocks
+    - Note: `StageSections` is split in two so the page can be tested. `StageSectionsView` is synchronous and takes the loaded data, which tests render to static markup. `StageSections` loads the data, resolves the access, and logs a failed load on the server before it shows the generic error state. `StageSections` reads the state with `verificationState(reincarnation)`, which `verification.test.ts` shows to agree with `buildVerificationView(reincarnation).state`. Tasks 4.4 and 4.8 were written together, because the verify control sits directly below the evidence block at a fixed place in the tree. The headings of the Spec_Markdown renderer start at `h4` instead of the `h3` of the design, because the panels use `h3` for their own labels (Requirements, Design, Invariants).
     - _Requirements: 1.1 to 1.6, 2.7, 2.8, 7.1 to 7.6, 13.1, 13.5 to 13.7, 15.1 to 15.3, 15.5_
-  - [ ] 4.8 Add the "Verify live" control to `laboratory-panel.tsx` and `verification-evidence.tsx`
+  - [x] 4.8 Add the "Verify live" control to `laboratory-panel.tsx` and `verification-evidence.tsx`
     - Build the evidence block with `verifyAvailable` from `controls.verify.available`; for an owner with a Stored_Reincarnation, render the verify `StageActions route="verify"` at a fixed position directly below the evidence block with the label "Verify live", the help text and pending text of Requirement 18, and the Laboratory heading as `headingId`; pass `available` from `stageControls` so that the instance stays mounted after the refreshed state removes the button; render nothing for a `visitor` or `member-viewer`; extend `StageActions` only as far as the `verify` route needs (success messages, timeout, wait lock); no new dependency and no new GSAP timeline
     - _Requirements: 5.5, 6.5, 8.8, 8.9, 10.3, 10.4, 13.2, 13.3, 13.6, 17.6, 18.1 to 18.12_
 
-- [ ] 5. Component, action, and isolation tests
-  - [ ] 5.1 Write `.test.tsx` tests with `renderToStaticMarkup` for the panels and the page sections
+- [x] 5. Component, action, and isolation tests
+  - [x] 5.1 Write `.test.tsx` tests with `renderToStaticMarkup` for the panels and the page sections
     - Property 9 (Visitor and member-viewer markup has no controls, `numRuns` 100); owner markup in each stored state; literal display of `<script>` text; evidence block per state; resolve Open Item 12 (TSX in Vitest) first
+    - Open Item 12 resolved: Vitest compiles TSX with the `react-jsx` setting of `tsconfig.json` in the `node` environment, and `renderToStaticMarkup` works with the shadcn components, so `apps/web/vitest.config.ts` did not change. Tests that render a component with a client child mock `next/navigation`, and tests that render the approval form also mock `@/lib/supabase/server`. The builders and arbitraries are in `src/lib/testing/stage-fixtures.ts`.
     - _Requirements: 1.3, 1.5, 3.7, 4.4, 4.6, 5.5, 7.1 to 7.5, 8.2 to 8.8, 14.1, 16.4_
-  - [ ] 5.4 Write the Laboratory markup tests for the Verify_Control (new file `src/components/stages/laboratory-panel.test.tsx`; after task 5.1 has settled Open Item 12)
+  - [x] 5.4 Write the Laboratory markup tests for the Verify_Control (new file `src/components/stages/laboratory-panel.test.tsx`; after task 5.1 has settled Open Item 12)
     - `visitor` and `member-viewer` markup contains no "Verify live", no `data-stage-actions`, and no `/api/verify` (extend Property 9 so that its generated reincarnations include `NOT_RUN`, `numRuns` 100); owner markup with a `NOT_RUN` reincarnation contains the "Verify live" button, its note, and "Not verified yet."; owner markup for `VERIFIED`, `FAILED`, and `INCOMPLETE` contains no "Verify live" button; owner markup with no reincarnation contains no verify button; Sample_Corpse markup shows the precomputed evidence only. Test names start with `R16.11`, `R18.1`, `R18.2`, or `R6.5`
     - _Requirements: 6.5, 7.1, 7.2, 8.9, 16.4, 16.11, 18.1, 18.2, 18.3_
-  - [ ] 5.2 Write tests for `approveSeance` with `fakeClient` (Visitor, owner, zero rows, database error, invalid id)
+  - [x] 5.2 Write tests for `approveSeance` with `fakeClient` (Visitor, owner, zero rows, database error, invalid id)
     - _Requirements: 12.1 to 12.6, 16.6_
-  - [ ] 5.3 Write the static scan test over `src/lib/stages/` and `src/components/stages/` (Forbidden_Terms, forbidden imports, LLM variable names, `dangerouslySetInnerHTML`, explicit `any`)
+  - [x] 5.3 Write the static scan test over `src/lib/stages/` and `src/components/stages/` (Forbidden_Terms, forbidden imports, LLM variable names, `dangerouslySetInnerHTML`, explicit `any`)
+    - Note: the scan is `apps/web/test/stages-boundaries.test.ts`. It reads the sources with the TypeScript parser, so a comment never counts as authored text or as a `process.env` read. It also follows the imports of `stage-actions.tsx` to prove that nothing it imports, directly or not, is `ai`, an `@ai-sdk` package, or a `server-only` module.
     - _Requirements: 9.8, 14.1, 14.2, 14.5, 14.7, 16.8, 18.12_
 
-- [ ] 6. Documentation
-  - [ ] 6.1 Extend `apps/web/README.md` with the "Resurrection stages" section (sections, who sees which controls, the four verification states, troubleshooting, manual verification steps); confirm no new environment variable
+- [x] 6. Documentation
+  - [x] 6.1 Extend `apps/web/README.md` with the "Resurrection stages" section (sections, who sees which controls, the four verification states, troubleshooting, manual verification steps); confirm no new environment variable
+    - Note: the section `## Resurrection stages` is appended after `## Verification API`. `readme.test.ts` and `verification-readme.test.ts` end their sections at the next `## ` heading, so both stay green. The two statements about the approval gate were checked against the code: `reincarnate.ts` never reads `approved_at`, and `seance.ts` stores `approvedAt: null` for a cache copy and for a new séance.
     - _Requirements: 17.1 to 17.5_
-  - [ ] 6.2 Extend the README section of task 6.1 for the Verify_Control, the approval gate, and streaming
+  - [x] 6.2 Extend the README section of task 6.1 for the Verify_Control, the approval gate, and streaming
     - Describe when "Verify live" appears (owner, stored reincarnation, state `NOT_RUN`) and when it does not (`VERIFIED`, `FAILED`, `INCOMPLETE`, Visitors, members viewing samples); the meaning of its failure messages (`VERIFICATION_DISABLED`: switched off on the server, which is the default; `VERIFICATION_BUSY`; `VERIFICATION_INCONCLUSIVE`; `SANDBOX_UNAVAILABLE`; `REINCARNATION_REQUIRED`) without stating limit numbers that spec 08 owns; that the approval gate is a UI-level restriction and a direct API client can bypass it by design; that streaming is not provided and not planned; add the "Verify live" step to the manual verification list; confirm no new environment variable
     - _Requirements: 8.10, 9.9, 17.1, 17.6, 18.10_
 
-- [ ] 7. Final checkpoint
-  - [ ] 7.1 Run `pnpm lint`, `pnpm build`, and `pnpm test` from the root; confirm exit code 0
+- [x] 7. Final checkpoint
+  - [x] 7.1 Run `pnpm lint`, `pnpm build`, and `pnpm test` from the root; confirm exit code 0
+    - Status: `pnpm lint` and `pnpm build` exit with code 0 (7 and 4 tasks successful; the build lists `/corpses/[id]` and `/api/verify`, and Turbo replayed it from the cache of an identical input). `pnpm test` exits with code 0 on its second full run (7 tasks successful: 711 tests in the scanner, 216 in the Verifier, 1,094 in the web app, and 253 in the Sandbox_Runner). The first full run failed once in `apps/web/src/lib/verification/gate.test.ts` (R6.6 of spec 08: a real Worker with a 400 ms wall clock gave `ENTRY_FUNCTION_NOT_FOUND` instead of `SANDBOX_TIMEOUT`). That test passed in 5 of 5 runs alone and in the second full run, and this spec changes nothing under `lib/verification/` or `packages/`, so it looks like a load-sensitive test of spec 08. It is not resolved, and it is the same kind of problem that the timeout fix for 07 addressed. `pnpm test:db` was not run again: this spec does not touch `db/`.
     - _Requirements: 16.1_
-  - [ ] 7.2 Check scope (Requirement 17: no change outside `apps/web`, no migration, no new variable, no new dependency, no new GSAP timeline), re-read Requirements 1 to 18, and list anything that only the manual verification covers (real Pipeline_API calls including a real "Verify live" with live verification switched off and on, keyboard, reduced motion, 360 px width)
+  - [x] 7.2 Check scope (Requirement 17: no change outside `apps/web`, no migration, no new variable, no new dependency, no new GSAP timeline), re-read Requirements 1 to 18, and list anything that only the manual verification covers (real Pipeline_API calls including a real "Verify live" with live verification switched off and on, keyboard, reduced motion, 360 px width)
+    - Scope (Requirement 17): the diff against `develop` has 55 files, all under `apps/web` except this `tasks.md`. Nothing changed in `db/`, `packages/`, `.env.example`, `package.json`, or `pnpm-lock.yaml`, no route handler of `app/api` changed, and no animation file changed (`gsap` is imported by no stage module). No migration, no environment variable, and no dependency was added.
+    - Criteria: 138 criteria. Every one is cited by a task except 14.6 (no execution of stored code), which `test/stages-boundaries.test.ts` checks (no `eval`, no `Function`, no `node:vm`, no `@lazarus/*` import). 107 criteria have an `R<n>.<m>` id in a test name. Most of the other 31 are checked by content in the static scan (13.3, 13.5, 13.6, 15.1, 15.5, 10.1, 9.1, 9.2, 9.9, 1.2, 1.6), in `stage-sections.test.tsx` (2.8, 15.3, 2.1, 7.6, and 14.4 together with `actions.test.ts` and `errors.test.ts`), or by the commands above (16.1, 16.2). The other criteria without an id (for example 17.1 to 17.6 and 16.4, 16.6, 16.7, 16.9) describe documentation, scope, or the tests themselves, and were checked by reading the diff, the README, and the test files.
+    - Only the manual verification covers these, because they need a browser, a keyboard, or a real project: keyboard operation and the visible focus (13.2), the move of the focus to the section heading after a success (10.4, 18.8), the message that stays after `router.refresh()` (10.3, 18.9), reduced motion (13.6), the layout from 360 px to 1,920 px (13.7), the contrast of the new surfaces (13.5), the real calls of the Pipeline API, and a real "Verify live" with live verification switched off and on (18.10). **The manual verification was not run in this task.** The list of steps is in the `## Resurrection stages` section of `apps/web/README.md`. No test clicks a button or watches a page refresh: `StageActions` is covered by its pure modules (the reducer and `runPipeline`), by its initial markup, and by static checks of its source.
     - _Requirements: 13.2 to 13.7, 17.2 to 17.6_
-  - [ ] 7.3 Cross-reference with spec 08 (and 05, 07): re-read `.kiro/specs/08-live-verification-api/` and re-check the contract used here
+  - [x] 7.3 Cross-reference with spec 08 (and 05, 07): re-read `.kiro/specs/08-live-verification-api/` and re-check the contract used here
     - Compare with Open Item 15 of `design.md`: path `/api/verify`; request body; `source` values; the five error codes with their HTTP statuses and the code that carries `Retry-After`; the separate verification limit and its `RATE_LIMITED` code; the 60 s server deadline against `VERIFY_CLIENT_TIMEOUT_MS` (70,000 ms stays; write any conflict into Open Items); that no re-run is offered for final results; that spec 05 no longer says streaming belongs to 06; that spec 05 Requirement 12 criterion 10 (generation without approval) is unchanged. Record every difference in Open Items and fix the names in `PIPELINE_ERROR_CODES`, `RESULT_SOURCES`, and the tests
+    - Result (checked against the code of the routes, which now exist, and against the requirements of 05, 07, and 08): the contract matches in every point of Open Item 15.
+      - Path `/api/verify` and the request body `{ "corpseId": "<uuid>" }`. The `source` values are `precomputed`, `stored`, and `executed` (`verify.ts` returns `stored` for a stored result at line 111 and never runs it again, so there is no re-run).
+      - All 26 codes exist in the error tables of 05 and 08. The five codes of 08 have the statuses 409, 503, 429, 422, and 503. `RATE_LIMITED` (429) is used for the separate verification limit, and `Retry-After` is set for `RATE_LIMITED` and `VERIFICATION_BUSY`.
+      - The route has `maxDuration` 60. The client timeout of 70,000 ms stays. The route passes no `wallClockTimeoutMs`, so the Sandbox_Runner uses its defaults (10,000 ms to run and 10,000 ms to compile, plus 2,000 ms of kill grace), which fit in the 60 s deadline. The option accepts up to 60,000 ms, and a change of the route to a value near the maximum would not fit with the compile step, so it needs a look at that time.
+      - Spec 05 no longer says that streaming belongs to 06, and its Requirement 12 criterion 10 (generation whether or not `approved_at` is set) is unchanged: `reincarnate.ts` never reads `approved_at`.
+    - Differences recorded: none in the contract. One difference in the text of the server messages, which this UI does not show: the server says "Generate the reincarnation for this corpse before verification." for `REINCARNATION_REQUIRED`, and the UI shows its own fixed text "Generate the module first, then verify it." This is by design (Requirement 11 criterion 3), so the text of the server is never rendered.
     - _Requirements: 8.9, 8.10, 9.7, 9.9, 11.1, 11.10, 18.4, 18.5, 18.7, 18.11_
 
 ## Task Dependency Graph
