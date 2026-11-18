@@ -84,6 +84,7 @@ export function controlsFor(access: StageAccess, seance: SeanceSpec | null, stor
     seanceApproved: seance !== null && seance.approvedAt !== null,
     hasReincarnation: stored !== null,
     verificationState: stored === null ? null : verificationState(stored),
+    liveVerificationEnabled: true,
   };
   return stageControls(access, facts);
 }

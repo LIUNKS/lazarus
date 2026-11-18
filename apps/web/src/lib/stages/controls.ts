@@ -26,6 +26,11 @@ export interface StageFacts {
   seanceApproved: boolean;
   hasReincarnation: boolean;
   verificationState: VerificationState | null;
+  /**
+   * True when the server runs live verification of an owner's corpse. It comes from the server-side execution decision
+   * (the reviewed flag and the kill switch), never from a client value.
+   */
+  liveVerificationEnabled: boolean;
 }
 
 export type ControlState = { available: true } | { available: false; reason: string | null };
@@ -49,6 +54,7 @@ export const VERIFY_PENDING_TEXT = 'Running the check. This can take up to a min
 
 export const REASON_RUN_SEANCE_FIRST = 'Run the séance first.';
 export const REASON_APPROVE_FIRST = 'Approve the séance spec to enable reincarnation.';
+export const REASON_VERIFY_OFF = 'Live verification is not available on this server.';
 
 /**
  * The actions the page offers for an access level and the stored state.
@@ -58,8 +64,10 @@ export const REASON_APPROVE_FIRST = 'Approve the séance spec to enable reincarn
  * - The reincarnation is offered only for an approved séance without a reincarnation. That approval condition is a
  *   UI-level restriction only: the Reincarnate_Route does not check `approved_at` (Requirement 12 criterion 10 of
  *   05-llm-pipeline-api), so a direct API client can skip it. This is intended, and no backend check is planned.
- * - "Verify live" is offered only for a stored reincarnation in the state `NOT_RUN`. The other states are final results,
- *   and 08-live-verification-api offers no re-run for them.
+ * - "Verify live" is offered only for a stored reincarnation in the state `NOT_RUN`, and only while the server runs live
+ *   verification (`liveVerificationEnabled`). While it is off, the control is not offered and the owner gets a reason
+ *   instead of a button that can only answer "switched off". The other states are final results, and
+ *   08-live-verification-api offers no re-run for them.
  */
 export function stageControls(access: StageAccess, facts: StageFacts): StageControls {
   if (access !== 'owner') {
@@ -72,12 +80,17 @@ export function stageControls(access: StageAccess, facts: StageFacts): StageCont
   else if (!facts.seanceApproved) reincarnate = { available: false, reason: REASON_APPROVE_FIRST };
   else reincarnate = AVAILABLE;
 
+  let verify: ControlState = UNAVAILABLE;
+  if (facts.hasReincarnation && facts.verificationState === 'NOT_RUN') {
+    verify = facts.liveVerificationEnabled ? AVAILABLE : { available: false, reason: REASON_VERIFY_OFF };
+  }
+
   return {
     scan: AVAILABLE,
     seance: facts.hasSeance ? UNAVAILABLE : AVAILABLE,
     approve: facts.hasSeance && !facts.seanceApproved ? AVAILABLE : UNAVAILABLE,
     reincarnate,
-    verify: facts.hasReincarnation && facts.verificationState === 'NOT_RUN' ? AVAILABLE : UNAVAILABLE,
+    verify,
   };
 }
 

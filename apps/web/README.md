@@ -385,9 +385,9 @@ Only `VERIFIED` uses the emerald color, and the state is always written as text.
 
 ### Verify live
 
-"Verify live" runs the legacy and the modern function in an isolated environment on generated inputs. It calls `POST /api/verify` (see the Verification API section). It appears only for the owner of a corpse that has a stored reincarnation in the state `NOT_RUN`. It does not appear for `VERIFIED`, `FAILED`, or `INCOMPLETE`, because those are final results that the route never replaces, and it does not appear for a visitor or for a member looking at a sample.
+"Verify live" runs the legacy and the modern function in an isolated environment on generated inputs. It calls `POST /api/verify` (see the Verification API section). It appears only for the owner of a corpse that has a stored reincarnation in the state `NOT_RUN`, and only while the server runs live verification. It does not appear for `VERIFIED`, `FAILED`, or `INCOMPLETE`, because those are final results that the route never replaces, and it does not appear for a visitor or for a member looking at a sample.
 
-The control stays visible and enabled even when the server has live verification switched off, which is the default. What each failure message means:
+While the server has live verification switched off, which is the default, the button is not shown. The owner reads "Live verification is not available on this server." below the evidence block instead. The page decides this on the server from the reviewed flag and the kill switch (see the Verification API section). If the flag changes after the page was rendered, the server still answers `VERIFICATION_DISABLED` to a request, and the button stays enabled with the message below. What each failure message means:
 
 | Message | Code | Meaning |
 |---|---|---|
@@ -412,7 +412,7 @@ The routes return one JSON document and can take up to about two minutes, so the
 
 - A sample shows "No curses are stored", "No séance is stored", or "No reincarnation is stored": the sample rows come from the database migrations. Run `pnpm db:migrate`.
 - The scan, the séance, and the reincarnation answer with "The service is unavailable right now": they need the Pipeline API and its configuration (see the Pipeline API section, including the model settings).
-- "Verify live" answers that live verification is switched off: the Verification API is deployed, but the server keeps user execution disabled, which is the default. Turning it on is a reviewed code change and is described in the Verification API section.
+- There is no "Verify live" button and the Laboratory says that live verification is not available: the server keeps user execution disabled, which is the default. Turning it on is a reviewed code change and is described in the Verification API section.
 - A button stays disabled: a request is pending, or the server asked the page to wait. The message under the button says which.
 
 ### Manual verification
@@ -421,8 +421,8 @@ The automated tests render the sections to static markup and test the logic of t
 
 1. As a visitor, open each sample. Check the three sections and the exact run count, and check that the Network tab shows no request to `/api/`.
 2. Sign in, import legacy code, and run the scan. Check the curses, the marked lines in the source, and the "Line N" links.
-3. Begin the séance, read the spec, approve it, and begin the reincarnation. The Laboratory should show "Not verified yet." and a "Verify live" button.
-4. Press "Verify live". With live verification switched off, expect the message that it is switched off, and expect the button to stay enabled. With it switched on, expect the evidence block with the exact run count, or the text for a failed run.
+3. Begin the séance, read the spec, approve it, and begin the reincarnation. The Laboratory should show "Not verified yet." With live verification switched on it also shows a "Verify live" button. With it switched off it shows no button and the text "Live verification is not available on this server."
+4. With live verification switched on, press "Verify live" and expect the evidence block with the exact run count, or the text for a failed run.
 5. Import the same code again as a second corpse and begin the séance. Expect the message that a stored result was reused and that no model request was made.
 6. Reach a request limit and check the waiting message and the disabled button.
 7. Use only the keyboard, switch on reduced motion, throttle the network to see the pending state, and check a viewport of 360 px width.

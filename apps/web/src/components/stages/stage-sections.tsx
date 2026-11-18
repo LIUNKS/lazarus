@@ -12,6 +12,7 @@ import type { CorpseDetail, Reincarnation, SeanceSpec } from '@/lib/data/types';
 import { resolveAccess, stageControls, summarizeStages, type StageAccess, type StageFacts } from '@/lib/stages/controls';
 import type { ScannerView } from '@/lib/stages/scanner-view';
 import { verificationState } from '@/lib/stages/verification';
+import { effectiveExecution } from '@/lib/verification/execution';
 
 /**
  * The overview and the three sections for data that is already loaded. It is synchronous, so tests render it to static
@@ -23,12 +24,15 @@ export function StageSectionsView({
   seance,
   reincarnation,
   scannerView,
+  liveVerificationEnabled,
 }: {
   corpse: CorpseDetail;
   access: StageAccess;
   seance: SeanceSpec | null;
   reincarnation: Reincarnation | null;
   scannerView: ScannerView;
+  /** The server-side execution decision. While it is false, the "Verify live" control is not offered. */
+  liveVerificationEnabled: boolean;
 }) {
   const facts: StageFacts = {
     curseCount: corpse.curseCount,
@@ -36,6 +40,7 @@ export function StageSectionsView({
     seanceApproved: seance !== null && seance.approvedAt !== null,
     hasReincarnation: reincarnation !== null,
     verificationState: reincarnation === null ? null : verificationState(reincarnation),
+    liveVerificationEnabled,
   };
   const controls = stageControls(access, facts);
   const currentPath = `/corpses/${corpse.id}`;
@@ -94,6 +99,7 @@ export async function StageSections({
       seance={stages.seance}
       reincarnation={stages.reincarnation}
       scannerView={scannerView}
+      liveVerificationEnabled={effectiveExecution().enabled}
     />
   );
 }

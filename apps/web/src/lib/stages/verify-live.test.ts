@@ -34,6 +34,7 @@ const facts = (verificationState: VerificationState | null): StageFacts => ({
   seanceApproved: true,
   hasReincarnation: verificationState !== null,
   verificationState,
+  liveVerificationEnabled: true,
 });
 
 describe('R16.10 R8.9 the verify control in stageControls', () => {
