@@ -5,11 +5,12 @@ import {
   VERIFY_HELP_TEXT,
   VERIFY_LABEL,
   VERIFY_PENDING_TEXT,
+  VERIFY_SAMPLE_HELP_TEXT,
   stageControls,
   type StageAccess,
   type StageFacts,
 } from './controls';
-import { FAILURE_PRESENTATIONS, PIPELINE_ERROR_CODES, presentFailure, presentSuccess } from './errors';
+import { FAILURE_PRESENTATIONS, PIPELINE_ERROR_CODES, presentFailure, presentLiveSuccess, presentSuccess } from './errors';
 import {
   PIPELINE_PATHS,
   RESULT_SOURCES,
@@ -26,7 +27,7 @@ const CORPSE_ID = '3f6c1b2e-7a4d-4e8b-9c15-2d0a8b6f4e73';
 const ACCESS: StageAccess[] = ['visitor', 'member-viewer', 'owner'];
 const STATES: Array<VerificationState | null> = ['NOT_RUN', 'VERIFIED', 'FAILED', 'INCOMPLETE', null];
 const ROUTES = Object.keys(PIPELINE_PATHS) as PipelineRoute[];
-const ALL_SOURCES = ['precomputed', 'stored', 'cache', 'generated', 'executed'] as const;
+const ALL_SOURCES = ['precomputed', 'stored', 'cache', 'generated', 'executed', 'live'] as const;
 
 const facts = (verificationState: VerificationState | null): StageFacts => ({
   curseCount: 2,
@@ -34,6 +35,7 @@ const facts = (verificationState: VerificationState | null): StageFacts => ({
   seanceApproved: true,
   hasReincarnation: verificationState !== null,
   verificationState,
+  isSample: false,
   liveVerificationEnabled: true,
 });
 
@@ -131,13 +133,67 @@ describe('R9.7 R16.10 the result sources of each route', () => {
         (route, source, extra) => {
           const body = { ok: true, source, evidence: extra, reincarnation: { evidence: extra }, corpse: { note: extra } };
           const outcome = parseOutcome(route, 200, null, body);
-          const accepted = (RESULT_SOURCES[route] as readonly string[]).includes(source);
+          // A `live` success needs valid result values, which this body does not have, so it is never accepted here.
+          const accepted = (RESULT_SOURCES[route] as readonly string[]).includes(source) && source !== 'live';
           const echoed = JSON.stringify(outcome).includes('ECHO-');
           return !echoed && (accepted ? outcome.kind === 'success' && outcome.source === source : outcome.kind === 'failure' && outcome.failure === 'UNKNOWN');
         },
       ),
       { numRuns: 200 },
     );
+  });
+});
+
+describe('R18.13 R18.14 a live sample run', () => {
+  const liveBody = (reincarnation: unknown) => ({ ok: true, source: 'live', reincarnation, corpse: { id: CORPSE_ID, status: 'RESURRECTED' } });
+
+  it('R18.14 accepts "live" only from the verification route', () => {
+    expect(isResultSource('verify', 'live')).toBe(true);
+    for (const route of ['scan', 'seance', 'reincarnate'] as const) expect(isResultSource(route, 'live')).toBe(false);
+  });
+
+  it('R18.14 reads the passed flag and the run count of a live success, and no text field', () => {
+    const outcome = parseOutcome('verify', 200, null, liveBody({ pbtPassed: true, totalRuns: 1000, executionTimeMs: 12, evidence: 'LEAKED-EVIDENCE-TEXT' }));
+    expect(outcome).toEqual({ kind: 'success', source: 'live', live: { passed: true, totalRuns: 1000 } });
+    expect(JSON.stringify(outcome)).not.toContain('LEAKED');
+  });
+
+  it.each([
+    ['no reincarnation object', undefined],
+    ['a missing passed flag', { totalRuns: 1000 }],
+    ['a text passed flag', { pbtPassed: 'true', totalRuns: 1000 }],
+    ['a zero run count', { pbtPassed: true, totalRuns: 0 }],
+    ['a fractional run count', { pbtPassed: true, totalRuns: 10.5 }],
+    ['a text run count', { pbtPassed: false, totalRuns: '7' }],
+    ['an array', [true, 1000]],
+  ])('R18.14 reads a live success with %s as UNKNOWN', (_label, reincarnation) => {
+    expect(parseOutcome('verify', 200, null, liveBody(reincarnation))).toEqual({ kind: 'failure', failure: 'UNKNOWN', status: 200, retryAfterSeconds: null });
+  });
+
+  it('R18.14 words the result of a live run with the exact run count and says it was not stored', () => {
+    const verified = presentLiveSuccess({ passed: true, totalRuns: 1000 });
+    const differed = presentLiveSuccess({ passed: false, totalRuns: 7 });
+    expect(verified).toBe(
+      'The live check finished. Verified behavioral equivalence across 1,000 newly generated inputs. This result is shown here only and was not stored.',
+    );
+    expect(differed).toBe(
+      'The live check finished. The modern function differed from the legacy function after 7 newly generated inputs. This result is shown here only and was not stored.',
+    );
+    for (const text of [verified, differed]) expect(containsForbiddenTerm(text)).toBe(false);
+  });
+
+  it('R18.14 shows the live message in the done state of the reducer', () => {
+    const state = actionReducer(
+      { phase: 'pending' },
+      { type: 'finish', route: 'verify', outcome: { kind: 'success', source: 'live', live: { passed: true, totalRuns: 250 } }, now: 0 },
+    );
+    expect(state).toEqual({ phase: 'done', message: presentLiveSuccess({ passed: true, totalRuns: 250 }) });
+  });
+
+  it('R18.13 words the sample help text with no limit value, no run count, and no forbidden term', () => {
+    expect(VERIFY_SAMPLE_HELP_TEXT).toContain('is not stored');
+    expect(VERIFY_SAMPLE_HELP_TEXT).not.toMatch(/\d/);
+    expect(containsForbiddenTerm(VERIFY_SAMPLE_HELP_TEXT)).toBe(false);
   });
 });
 

@@ -38,6 +38,8 @@ export interface VerifyHarnessOptions {
   /** Scripted sandbox results, one per run (the last one repeats). */
   results?: unknown[];
   execution?: ExecutionDecision | (() => ExecutionDecision);
+  /** The kill switch decision for a live run of a Sample_Corpse. */
+  sampleExecution?: ExecutionDecision;
   sessionThrows?: boolean;
 }
 
@@ -46,7 +48,7 @@ export function readyOwned(overrides: { corpse?: Partial<MemoryCorpse>; reincarn
   return {
     corpses: [makeCorpse({ status: 'IN_SEANCE', ...overrides.corpse }), sampleCorpse(), foreignCorpse()],
     reincarnations: [reincarnationRow(OWNED_ID, overrides.reincarnation), reincarnationRow(SAMPLE_ID, { pbtPassed: true, totalRuns: 1_000, executionTimeMs: 50 })],
-    seances: [seanceRow(OWNED_ID, overrides.seance)],
+    seances: [seanceRow(OWNED_ID, overrides.seance), seanceRow(SAMPLE_ID)],
   };
 }
 
@@ -66,6 +68,7 @@ export function buildVerifyHarness(options: VerifyHarnessOptions = {}) {
   /** The number of store calls made before each sandbox run, to check that the quota call came first. */
   const storeCallsAtRun: number[] = [];
   const execution = options.execution ?? ENABLED;
+  const sampleExecution = options.sampleExecution ?? ENABLED;
 
   const deps: VerifyDeps = {
     async session() {
@@ -82,6 +85,11 @@ export function buildVerifyHarness(options: VerifyHarnessOptions = {}) {
     execution() {
       counters.executionReads += 1;
       return typeof execution === 'function' ? execution() : execution;
+    },
+    // Both decisions read the kill switch, so both count as one execution read.
+    sampleExecution() {
+      counters.executionReads += 1;
+      return sampleExecution;
     },
     randomSeed() {
       counters.seeds += 1;
@@ -235,7 +243,8 @@ export function storeState(options: { reincarnation: boolean; verdict: boolean |
     const stored = options.verdict === null ? {} : { pbtPassed: options.verdict, totalRuns: options.verdict ? 1_000 : 12, executionTimeMs: 77 };
     reincarnations.push(reincarnationRow(OWNED_ID, stored));
   }
-  return { corpses: [owned, sampleCorpse(), foreignCorpse()], reincarnations, seances: seanceFor(options.seance) };
+  // The sample always has its seeded Seance spec, as the migrations store it. `seance` varies the owned corpse only.
+  return { corpses: [owned, sampleCorpse(), foreignCorpse()], reincarnations, seances: [...seanceFor(options.seance), seanceRow(SAMPLE_ID)] };
 }
 
 /** Sandbox_Runner codes that end a run without a verdict, and the other ERROR codes it can return. */

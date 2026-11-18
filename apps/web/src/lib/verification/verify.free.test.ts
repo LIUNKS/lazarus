@@ -55,20 +55,20 @@ describe('free paths', () => {
     );
   });
 
-  it('R3.12 a precomputed or a stored answer costs nothing and is the same for every switch value (Requirement 3)', async () => {
+  it('R3.12 R13.1 a precomputed answer (Visitor) or a stored answer (owner) costs nothing and is the same for every switch value (Requirement 3)', async () => {
     // Feature: 08-live-verification-api, Supporting check: Precomputed and stored answers are free
     await fc.assert(
       fc.asyncProperty(
         fc.constantFrom('precomputed', 'stored'),
-        fc.constantFrom<string | null>(MEMBER_ID, null),
         fc.boolean(),
         seanceStateArb,
         quotaStepArb,
         executionArb,
         executionArb,
-        async (path, memberId, passed, seance, quota, first, second) => {
+        async (path, passed, seance, quota, first, second) => {
           const corpseId = path === 'precomputed' ? corpseIdOf('sample') : OWNED_ID;
-          const member = path === 'stored' ? MEMBER_ID : memberId;
+          // A Member who asks for a sample gets a live run (Requirement 13), so only a Visitor gets `precomputed`.
+          const member = path === 'stored' ? MEMBER_ID : null;
           const state = () => storeState({ reincarnation: true, verdict: passed, seance });
           const a = await respond({ memberId: member, body: 'valid', corpseId, execution: first, state: state(), quota });
           const b = await respond({ memberId: member, body: 'valid', corpseId, execution: second, state: state(), quota });

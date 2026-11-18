@@ -1,7 +1,7 @@
 // The closed list of Error_Codes of the Pipeline_API, and the fixed English text shown for each failure and each success.
 // Pure module: no framework imports, no process.env. The text of a server response is never read or shown.
-import { formatRetryAfter } from './format';
-import type { PipelineOutcome, PipelineRoute, ResultSource } from './pipeline-client';
+import { formatRetryAfter, formatRunCount } from './format';
+import type { LiveResult, PipelineOutcome, PipelineRoute, ResultSource } from './pipeline-client';
 
 /** The 21 codes of 05-llm-pipeline-api followed by the 5 codes of 08-live-verification-api (26 in total). */
 export const PIPELINE_ERROR_CODES = [
@@ -167,6 +167,19 @@ export function presentFailure(
 }
 
 const REUSED = 'Reused a stored result for identical code. No model request was made.';
+const LIVE_NOT_STORED = 'The live check finished. This result is shown here only and was not stored.';
+
+/**
+ * The message of a live sample run (08-live-verification-api Requirement 13). It states the exact run count as empirical
+ * evidence and says that nothing was stored, because the precomputed result below stays as it is.
+ */
+export function presentLiveSuccess(live: LiveResult): string {
+  const runs = formatRunCount(live.totalRuns);
+  const outcome = live.passed
+    ? `Verified behavioral equivalence across ${runs} newly generated inputs.`
+    : `The modern function differed from the legacy function after ${runs} newly generated inputs.`;
+  return `The live check finished. ${outcome} This result is shown here only and was not stored.`;
+}
 const PRECOMPUTED = 'The result is precomputed. Showing it.';
 
 /** The fixed success message for a route and a source. Any pair that no route produces falls back to "Done.". */
@@ -190,6 +203,8 @@ export function presentSuccess(route: PipelineRoute, source: ResultSource): stri
       return 'Done.';
     case 'verify':
       if (source === 'executed') return 'The check finished. The stored result is shown below.';
+      // A `live` success always carries its result and is worded by `presentLiveSuccess`. This line is a fallback only.
+      if (source === 'live') return LIVE_NOT_STORED;
       if (source === 'stored') return 'A result was already stored. Showing it.';
       if (source === 'precomputed') return PRECOMPUTED;
       return 'Done.';

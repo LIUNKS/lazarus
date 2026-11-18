@@ -34,25 +34,37 @@ interface Scenario {
   verdict: boolean | null;
   seance: SeanceState;
   enabled: boolean;
+  /** The kill switch decision for a sample run. It is independent of `enabled`, which covers owned corpses. */
+  sampleEnabled: boolean;
   quota: QuotaStep;
 }
 
-type Expected = { kind: 'error'; code: VerifyErrorCode; quotaCalled: boolean } | { kind: 'ok'; source: 'precomputed' | 'stored' | 'executed' };
+type Expected = { kind: 'error'; code: VerifyErrorCode; quotaCalled: boolean } | { kind: 'ok'; source: 'precomputed' | 'stored' | 'executed' | 'live' };
 
-// The order of Requirement 3 criterion 8, written independently of the handler.
+/** The quota step of a run, shared by the owned path and the sample path. */
+function afterQuota(s: Scenario, source: 'executed' | 'live'): Expected {
+  if (s.quota === 'deny-user' || s.quota === 'deny-global') return { kind: 'error', code: 'RATE_LIMITED', quotaCalled: true };
+  if (s.quota === 'error') return { kind: 'error', code: 'QUOTA_UNAVAILABLE', quotaCalled: true };
+  return { kind: 'ok', source };
+}
+
+// The order of Requirement 3 criterion 8 and Requirement 13 criterion 2, written independently of the handler.
 function expected(s: Scenario): Expected {
   const precheck = PRECHECK_CODE[s.body];
   if (precheck !== null) return { kind: 'error', code: precheck, quotaCalled: false };
-  if (s.corpse === 'sample') return { kind: 'ok', source: 'precomputed' };
+  if (s.corpse === 'sample') {
+    // The sample has its stored row and its seeded Seance spec in every scenario.
+    if (s.caller === 'visitor') return { kind: 'ok', source: 'precomputed' };
+    if (!s.sampleEnabled) return { kind: 'error', code: 'VERIFICATION_DISABLED', quotaCalled: false };
+    return afterQuota(s, 'live');
+  }
   if (s.caller === 'visitor') return { kind: 'error', code: 'AUTH_REQUIRED', quotaCalled: false };
   if (s.corpse !== 'owned') return { kind: 'error', code: 'NOT_FOUND', quotaCalled: false };
   if (!s.reincarnation) return { kind: 'error', code: 'REINCARNATION_REQUIRED', quotaCalled: false };
   if (s.verdict !== null) return { kind: 'ok', source: 'stored' };
   if (!s.enabled) return { kind: 'error', code: 'VERIFICATION_DISABLED', quotaCalled: false };
   if (s.seance !== 'valid') return { kind: 'error', code: 'SEANCE_REQUIRED', quotaCalled: false };
-  if (s.quota === 'deny-user' || s.quota === 'deny-global') return { kind: 'error', code: 'RATE_LIMITED', quotaCalled: true };
-  if (s.quota === 'error') return { kind: 'error', code: 'QUOTA_UNAVAILABLE', quotaCalled: true };
-  return { kind: 'ok', source: 'executed' };
+  return afterQuota(s, 'executed');
 }
 
 const scenario: fc.Arbitrary<Scenario> = fc.record({
@@ -63,6 +75,7 @@ const scenario: fc.Arbitrary<Scenario> = fc.record({
   verdict: verdictArb,
   seance: seanceStateArb,
   enabled: fc.boolean(),
+  sampleEnabled: fc.boolean(),
   quota: quotaStepArb,
 });
 
@@ -76,10 +89,11 @@ describe('verification gating', () => {
           ...storeState({ reincarnation: s.reincarnation, verdict: s.verdict, seance: s.seance }),
           quota: [quotaScriptFor(s.quota)],
           execution: s.enabled ? ENABLED : DISABLED,
+          sampleExecution: s.sampleEnabled ? ENABLED : { enabled: false, reason: 'kill-switch' },
         });
         const checked = await checkVerifyResponse(await handleVerify(requestForCase(s.body, corpseIdOf(s.corpse)), harness.deps));
         const want = expected(s);
-        const ranSandbox = want.kind === 'ok' && want.source === 'executed';
+        const ranSandbox = want.kind === 'ok' && (want.source === 'executed' || want.source === 'live');
         const quotaCalled = ranSandbox || (want.kind === 'error' && want.quotaCalled);
 
         if (want.kind === 'ok') {
@@ -94,7 +108,9 @@ describe('verification gating', () => {
           // The quota call came before the sandbox run.
           (!ranSandbox || (quotaIndex >= 0 && quotaIndex < (harness.storeCallsAtRun[0] ?? -1))) &&
           // A request that fails before the quota step writes nothing.
-          (quotaCalled || harness.store.writes.length === 0)
+          (quotaCalled || harness.store.writes.length === 0) &&
+          // A sample run never writes a result (Requirement 13 criterion 4).
+          (s.corpse !== 'sample' || (harness.store.recordCalls === 0 && harness.store.verdictWrites.length === 0))
         );
       }),
       { numRuns: 150 },

@@ -2,6 +2,7 @@
 // a response, and one call function with an injected `fetch`. Pure module: no framework imports, no process.env, and it
 // never reads the text of a server message. `runPipeline` and `parseOutcome` never throw.
 import { PIPELINE_ERROR_CODES, type FailureKind, type PipelineErrorCode } from './errors';
+import { isValidRunCount } from './verification';
 
 /** The route paths are constants. They are never built from stored or user-supplied data. */
 export const PIPELINE_PATHS = {
@@ -27,7 +28,7 @@ export const RESULT_SOURCES = {
   scan: ['precomputed', 'stored', 'cache', 'generated'],
   seance: ['precomputed', 'stored', 'cache', 'generated'],
   reincarnate: ['precomputed', 'stored', 'cache', 'generated'],
-  verify: ['precomputed', 'stored', 'executed'],
+  verify: ['precomputed', 'stored', 'executed', 'live'],
 } as const satisfies Record<PipelineRoute, readonly string[]>;
 
 export type ResultSource = (typeof RESULT_SOURCES)[PipelineRoute][number];
@@ -36,9 +37,24 @@ export function isResultSource(route: PipelineRoute, value: unknown): value is R
   return typeof value === 'string' && (RESULT_SOURCES[route] as readonly string[]).includes(value);
 }
 
+/** The result of a live sample run (`source: 'live'`). Nothing is stored, so the page cannot read it from a row. */
+export interface LiveResult {
+  passed: boolean;
+  totalRuns: number;
+}
+
 export type PipelineOutcome =
-  | { kind: 'success'; source: ResultSource }
+  | { kind: 'success'; source: ResultSource; live?: LiveResult }
   | { kind: 'failure'; failure: FailureKind; status: number | null; retryAfterSeconds: number | null };
+
+/** Reads `reincarnation.pbtPassed` and `reincarnation.totalRuns` of a `live` success, or null when either is not valid. */
+function readLiveResult(record: Record<string, unknown>): LiveResult | null {
+  const reincarnation = record['reincarnation'];
+  if (typeof reincarnation !== 'object' || reincarnation === null || Array.isArray(reincarnation)) return null;
+  const { pbtPassed, totalRuns } = reincarnation as Record<string, unknown>;
+  if (typeof pbtPassed !== 'boolean' || typeof totalRuns !== 'number' || !isValidRunCount(totalRuns)) return null;
+  return { passed: pbtPassed, totalRuns };
+}
 
 /** The longest wait the UI honors: 24 hours. */
 const MAX_RETRY_AFTER_SECONDS = 86_400;
@@ -64,7 +80,9 @@ function failure(kind: FailureKind, status: number | null, retryAfterSeconds: nu
  * Turns one response into an outcome. A success needs status 200, `ok: true`, and a `source` accepted for the route. An
  * error needs `ok: false` and a code from the closed list. Everything else is `UNKNOWN`. Only `ok`, `source`, and
  * `error.code` are read: the other fields of the body, including a `message` and the extra objects of a `verify`
- * success, are ignored. `Retry-After` is read only for `RATE_LIMITED` and `VERIFICATION_BUSY`.
+ * success, are ignored. The one exception is a `live` success of `verify`: its run is not stored, so the two values
+ * `reincarnation.pbtPassed` and `reincarnation.totalRuns` are read and checked, and a `live` success without valid
+ * values is `UNKNOWN`. No text field is ever read. `Retry-After` is read only for `RATE_LIMITED` and `VERIFICATION_BUSY`.
  */
 export function parseOutcome(
   route: PipelineRoute,
@@ -76,7 +94,10 @@ export function parseOutcome(
   const record = body as Record<string, unknown>;
   if (record['ok'] === true) {
     const source = record['source'];
-    return status === 200 && isResultSource(route, source) ? { kind: 'success', source } : failure('UNKNOWN', status);
+    if (status !== 200 || !isResultSource(route, source)) return failure('UNKNOWN', status);
+    if (source !== 'live') return { kind: 'success', source };
+    const live = readLiveResult(record);
+    return live === null ? failure('UNKNOWN', status) : { kind: 'success', source, live };
   }
   if (record['ok'] === false) {
     const error = record['error'];

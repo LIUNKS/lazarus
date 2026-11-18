@@ -26,9 +26,11 @@ export interface StageFacts {
   seanceApproved: boolean;
   hasReincarnation: boolean;
   verificationState: VerificationState | null;
+  /** True for a Sample_Corpse. Comes from the corpse row read on the server. */
+  isSample: boolean;
   /**
-   * True when the server runs live verification of an owner's corpse. It comes from the server-side execution decision
-   * (the reviewed flag and the kill switch), never from a client value.
+   * True when the server runs live verification of this corpse. It comes from the server-side execution decision, never
+   * from a client value: for an owned corpse the reviewed flag and the kill switch, for a sample the kill switch only.
    */
   liveVerificationEnabled: boolean;
 }
@@ -51,6 +53,9 @@ export const VERIFY_LABEL = 'Verify live';
 export const VERIFY_HELP_TEXT =
   'Runs the legacy and the modern function in an isolated environment on generated inputs. This can take up to a minute and counts toward a separate verification limit.';
 export const VERIFY_PENDING_TEXT = 'Running the check. This can take up to a minute.';
+/** The help text of "Verify live" on a sample: the run is not stored, and the code is the reviewed sample code. */
+export const VERIFY_SAMPLE_HELP_TEXT =
+  'Runs the legacy and the modern function of this sample again on newly generated inputs. The result is shown here and is not stored. This can take up to a minute and counts toward a separate verification limit.';
 
 export const REASON_RUN_SEANCE_FIRST = 'Run the séance first.';
 export const REASON_APPROVE_FIRST = 'Approve the séance spec to enable reincarnation.';
@@ -59,7 +64,9 @@ export const REASON_VERIFY_OFF = 'Live verification is not available on this ser
 /**
  * The actions the page offers for an access level and the stored state.
  *
- * - A `visitor` and a `member-viewer` get no action at all.
+ * - A `visitor` gets no action at all. A `member-viewer` gets one action only: "Verify live" on a sample that has a
+ *   stored reincarnation, while the server runs sample verification (08-live-verification-api Requirement 13). That run
+ *   is never stored, so it is offered whatever the stored verification state is.
  * - An owner can always scan. The séance is offered only while none is stored, and the approval only for an unapproved one.
  * - The reincarnation is offered only for an approved séance without a reincarnation. That approval condition is a
  *   UI-level restriction only: the Reincarnate_Route does not check `approved_at` (Requirement 12 criterion 10 of
@@ -71,7 +78,8 @@ export const REASON_VERIFY_OFF = 'Live verification is not available on this ser
  */
 export function stageControls(access: StageAccess, facts: StageFacts): StageControls {
   if (access !== 'owner') {
-    return { scan: UNAVAILABLE, seance: UNAVAILABLE, approve: UNAVAILABLE, reincarnate: UNAVAILABLE, verify: UNAVAILABLE };
+    const sampleRun = access === 'member-viewer' && facts.isSample && facts.hasReincarnation && facts.liveVerificationEnabled;
+    return { scan: UNAVAILABLE, seance: UNAVAILABLE, approve: UNAVAILABLE, reincarnate: UNAVAILABLE, verify: sampleRun ? AVAILABLE : UNAVAILABLE };
   }
 
   let reincarnate: ControlState;

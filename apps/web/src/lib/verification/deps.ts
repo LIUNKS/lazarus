@@ -6,7 +6,7 @@ import { getCurrentMember, type Member } from '@/lib/auth/member';
 import { writeLogLine, type LogLine } from '@/lib/pipeline/log';
 import { requestOrigin } from '@/lib/security/request-origin';
 import { createClient } from '@/lib/supabase/server';
-import { effectiveExecution, type ExecutionDecision } from './execution';
+import { effectiveExecution, effectiveSampleExecution, type ExecutionDecision } from './execution';
 import { getVerificationGate } from './gate';
 import type { VerifyErrorCode } from './errors';
 import { createSandboxPort, type SandboxPort } from './sandbox';
@@ -51,7 +51,10 @@ export interface VerifyDeps {
   /** Creates the Server_Client of the request, resolves the caller from verified claims, and wraps the client. */
   session(): Promise<VerifySession>;
   sandbox: SandboxPort;
+  /** The decision for an Owned_Corpse: the reviewed flag and the kill switch. */
   execution(): ExecutionDecision;
+  /** The decision for a live run of a Sample_Corpse by a Member: the kill switch only. */
+  sampleExecution(): ExecutionDecision;
   /** A 32-bit signed integer. */
   randomSeed(): number;
   now(): number;
@@ -69,6 +72,7 @@ export function verificationDeps(): VerifyDeps {
     },
     sandbox: createSandboxPort(getVerificationGate()),
     execution: effectiveExecution,
+    sampleExecution: effectiveSampleExecution,
     randomSeed: () => crypto.getRandomValues(new Int32Array(1))[0] ?? 0,
     now: () => Date.now(),
     // The single log writer of 05 writes one JSON line. The two line types of this route carry only safe fields.

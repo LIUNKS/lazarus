@@ -19,3 +19,18 @@ export function decideExecution(flag: boolean, state: KillSwitchState): Executio
 export function effectiveExecution(): ExecutionDecision {
   return decideExecution(USER_EXECUTION_ENABLED, readKillSwitch());
 }
+
+/**
+ * The decision for a live run of a Sample_Corpse. Sample code is written and reviewed in the migrations, not
+ * imported by a user, so the reviewed USER_EXECUTION_ENABLED constant does not apply. The kill switch does: engaging
+ * it stops sample runs as well. An invalid kill switch value counts as engaged.
+ */
+export function decideSampleExecution(state: KillSwitchState): ExecutionDecision {
+  if (state === 'engaged') return { enabled: false, reason: 'kill-switch' };
+  if (state === 'invalid') return { enabled: false, reason: 'kill-switch-invalid' };
+  return { enabled: true };
+}
+
+export function effectiveSampleExecution(): ExecutionDecision {
+  return decideSampleExecution(readKillSwitch());
+}

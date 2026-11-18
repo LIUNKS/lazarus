@@ -14,7 +14,7 @@ import {
 import { handleVerify } from './verify';
 
 describe('access resolution', () => {
-  it('R3.4 R3.5 gives the stored row for a sample and identical denials for missing and foreign corpses (Requirement 3)', async () => {
+  it('R3.4 R3.5 R13.1 gives the stored row of a sample to a Visitor, a live run to a Member, and identical denials for missing and foreign corpses (Requirement 3)', async () => {
     // Feature: 08-live-verification-api, Property 3: Access resolution
     const bodies = new Map<string, string>();
     await fc.assert(
@@ -26,7 +26,16 @@ describe('access resolution', () => {
         const noCost = harness.sandbox.calls === 0 && harness.store.quotaCalls === 0 && harness.store.writes.length === 0;
 
         if (corpse === 'sample') {
-          return noCost && (sampleHasRow ? checked.status === 200 && checked.body['source'] === 'precomputed' : checked.code === 'NOT_PRECOMPUTED');
+          if (!sampleHasRow) return noCost && checked.code === 'NOT_PRECOMPUTED';
+          if (caller === 'visitor') return noCost && checked.status === 200 && checked.body['source'] === 'precomputed';
+          // A Member runs the sample live: one reservation and one run, and no verdict is written.
+          return (
+            checked.status === 200 &&
+            checked.body['source'] === 'live' &&
+            harness.sandbox.calls === 1 &&
+            harness.store.quotaCalls === 1 &&
+            harness.store.verdictWrites.length === 0
+          );
         }
         if (caller === 'visitor' || corpse !== 'owned') {
           const code = caller === 'visitor' ? 'AUTH_REQUIRED' : 'NOT_FOUND';

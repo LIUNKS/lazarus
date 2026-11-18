@@ -1,10 +1,12 @@
 // The success body of POST /api/verify (Requirement 2 criteria 4 to 7). Pure module.
-// It is built from the stored row only, never from a Sandbox_Result, and it uses the formatting functions of 05,
-// so the evidence text is the same everywhere.
+// It is built from the stored row, never from a raw Sandbox_Result, and it uses the formatting functions of 05,
+// so the evidence text is the same everywhere. The one exception is `live` (Requirement 13): the run of a
+// Sample_Corpse is never stored, so its three result values come from the classified run, which accepts only
+// validated integers, and the other fields still come from the stored row.
 import { evidenceOf, verificationOf } from '@/lib/pipeline/present';
 import type { CorpseStatus, ReincarnationRow, Verification } from '@/lib/pipeline/types';
 
-export type VerifySource = 'precomputed' | 'stored' | 'executed';
+export type VerifySource = 'precomputed' | 'stored' | 'executed' | 'live';
 
 export interface VerifyResponse {
   ok: true;
