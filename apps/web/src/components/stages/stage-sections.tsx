@@ -12,7 +12,7 @@ import type { CorpseDetail, Reincarnation, SeanceSpec } from '@/lib/data/types';
 import { resolveAccess, stageControls, summarizeStages, type StageAccess, type StageFacts } from '@/lib/stages/controls';
 import type { ScannerView } from '@/lib/stages/scanner-view';
 import { verificationState } from '@/lib/stages/verification';
-import { effectiveExecution } from '@/lib/verification/execution';
+import { effectiveExecution, effectiveSampleExecution } from '@/lib/verification/execution';
 
 /**
  * The overview and the three sections for data that is already loaded. It is synchronous, so tests render it to static
@@ -31,7 +31,7 @@ export function StageSectionsView({
   seance: SeanceSpec | null;
   reincarnation: Reincarnation | null;
   scannerView: ScannerView;
-  /** The server-side execution decision. While it is false, the "Verify live" control is not offered. */
+  /** The server-side execution decision for this corpse. While it is false, the "Verify live" control is not offered. */
   liveVerificationEnabled: boolean;
 }) {
   const facts: StageFacts = {
@@ -40,6 +40,7 @@ export function StageSectionsView({
     seanceApproved: seance !== null && seance.approvedAt !== null,
     hasReincarnation: reincarnation !== null,
     verificationState: reincarnation === null ? null : verificationState(reincarnation),
+    isSample: corpse.isSample,
     liveVerificationEnabled,
   };
   const controls = stageControls(access, facts);
@@ -92,6 +93,8 @@ export async function StageSections({
     console.error(`[stages] Loading the stage data failed: ${error instanceof Error ? error.name : 'unknown error'}`);
     return <ErrorState what="the stage results" />;
   }
+  // A sample is reviewed code and needs only the kill switch to be off. Imported code also needs the reviewed flag.
+  const liveVerificationEnabled = (corpse.isSample ? effectiveSampleExecution() : effectiveExecution()).enabled;
   return (
     <StageSectionsView
       corpse={corpse}
@@ -99,7 +102,7 @@ export async function StageSections({
       seance={stages.seance}
       reincarnation={stages.reincarnation}
       scannerView={scannerView}
-      liveVerificationEnabled={effectiveExecution().enabled}
+      liveVerificationEnabled={liveVerificationEnabled}
     />
   );
 }

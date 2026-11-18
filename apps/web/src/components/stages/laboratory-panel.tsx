@@ -2,7 +2,7 @@ import { CodeView } from '@/components/code-view';
 import { StageActions } from '@/components/stages/stage-actions';
 import { VerificationEvidence } from '@/components/stages/verification-evidence';
 import type { Reincarnation } from '@/lib/data/types';
-import type { StageAccess, StageControls } from '@/lib/stages/controls';
+import { VERIFY_SAMPLE_HELP_TEXT, type StageAccess, type StageControls } from '@/lib/stages/controls';
 import { ROUTE_COPY, SAMPLE_MIGRATION_HINT, stageHeadingId } from '@/lib/stages/copy';
 import { buildVerificationView } from '@/lib/stages/verification';
 import { formatDateUtc } from '@/lib/ui/format';
@@ -17,7 +17,8 @@ import { formatDateUtc } from '@/lib/ui/format';
  *   reincarnation. After a verification the stored state is final, `available` becomes false, the button disappears, and the
  *   success message stays. While the server has live verification switched off, `available` is false from the start and
  *   the owner reads a short reason below the evidence instead of a button.
- * A Visitor and a Member looking at a sample get neither control, and no `StageActions` element at all.
+ * A Visitor gets neither control, and no `StageActions` element at all. A Member looking at a sample gets the "Verify live"
+ * control only while the server runs sample verification, with a help text that says the result is not stored.
  */
 export function LaboratoryPanel({
   reincarnation,
@@ -36,6 +37,10 @@ export function LaboratoryPanel({
   const headingId = stageHeadingId('laboratory');
   const reincarnate = ROUTE_COPY.reincarnate;
   const verify = ROUTE_COPY.verify;
+  // The owner keeps the control mounted so its message stays after the refresh. A Member on a sample gets it only while
+  // it is offered, and there it stays offered after a run, because a live sample run stores nothing.
+  const showVerify = owner || controls.verify.available;
+  const verifyNote = owner ? verify.note : VERIFY_SAMPLE_HELP_TEXT;
   const reason = !controls.reincarnate.available ? controls.reincarnate.reason : null;
   const verifyReason = !controls.verify.available ? controls.verify.reason : null;
 
@@ -61,14 +66,15 @@ export function LaboratoryPanel({
         </div>
       ) : (
         <>
-          <VerificationEvidence view={buildVerificationView(reincarnation, { verifyAvailable: controls.verify.available })} />
-          {owner ? (
+          {/* Only the owner's run stores a result, so only then is the "no stored result" sentence replaced by the button. */}
+          <VerificationEvidence view={buildVerificationView(reincarnation, { verifyAvailable: owner && controls.verify.available })} />
+          {showVerify ? (
             <StageActions
               route="verify"
               corpseId={corpseId}
               available={controls.verify.available}
               label={verify.label}
-              note={verify.note}
+              note={verifyNote}
               pendingText={verify.pendingText}
               headingId={headingId}
               currentPath={currentPath}

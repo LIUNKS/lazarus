@@ -29,7 +29,27 @@ const config: NextConfig = {
     '/api/reincarnate': ['./node_modules/typescript/lib/lib.es*.d.ts', './node_modules/typescript/lib/lib.decorators*.d.ts'],
     // POST /api/verify (08-live-verification-api): the Sandbox_Runner starts Workers from files in its dist/worker/
     // directory, found at run time through import.meta.url, which file tracing cannot see.
-    '/api/verify': ['./node_modules/@lazarus/sandbox-runner/dist/**/*.js'],
+    // The route loads the runner with an import that the bundler does not follow (see lib/verification/sandbox.ts), so
+    // tracing also misses the package.json files that Node.js needs to resolve the packages and every runtime
+    // dependency of the runner. A sample run loads all of them: the runner, the Verifier, fast-check with pure-rand, and
+    // the TypeScript compiler with the ES library files the Verifier reads. The paths go through the pnpm links of each
+    // package, so they keep working when a version changes.
+    '/api/verify': [
+      './node_modules/@lazarus/sandbox-runner/package.json',
+      './node_modules/@lazarus/sandbox-runner/dist/**/*.js',
+      './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/package.json',
+      './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/dist/**/*.js',
+      './node_modules/@lazarus/sandbox-runner/node_modules/fast-check/package.json',
+      './node_modules/@lazarus/sandbox-runner/node_modules/fast-check/lib/**/*.js',
+      // pnpm links pure-rand next to fast-check inside the store, not below it.
+      '../../node_modules/.pnpm/fast-check@*/node_modules/pure-rand/package.json',
+      '../../node_modules/.pnpm/fast-check@*/node_modules/pure-rand/lib/**/*.js',
+      './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/fast-check/package.json',
+      './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/typescript/package.json',
+      './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/typescript/lib/typescript.js',
+      './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/typescript/lib/lib.es*.d.ts',
+      './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/typescript/lib/lib.decorators*.d.ts',
+    ],
   },
   // The Sandbox_Runner locates its worker files relative to its own module, so it must run from node_modules as
   // built, not bundled (a bundler cannot resolve the worker directory URL).

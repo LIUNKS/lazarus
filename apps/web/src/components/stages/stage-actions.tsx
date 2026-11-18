@@ -69,7 +69,8 @@ export function StageActions({ route, corpseId, available, label, note, pendingT
     setNow(finishedAt);
     dispatch({ type: 'finish', route, outcome, now: finishedAt });
     if (outcome.kind === 'success') {
-      router.refresh();
+      // A live sample run stores nothing, so there is no new row to load. Its result is in the message.
+      if (outcome.source !== 'live') router.refresh();
       document.getElementById(headingId)?.focus();
     }
   }

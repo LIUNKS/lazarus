@@ -26,8 +26,11 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({}) }));
 const stages = vi.hoisted(() => ({ load: async (): Promise<unknown> => ({ seance: null, reincarnation: null }) }));
 vi.mock('@/lib/data/load-stages', () => ({ loadStages: () => stages.load() }));
 // The execution decision reads the kill switch from the environment, which the test guards forbid. It is replaced too.
-const execution = vi.hoisted(() => ({ enabled: true }));
-vi.mock('@/lib/verification/execution', () => ({ effectiveExecution: () => ({ enabled: execution.enabled }) }));
+const execution = vi.hoisted(() => ({ enabled: true, sampleEnabled: true }));
+vi.mock('@/lib/verification/execution', () => ({
+  effectiveExecution: () => ({ enabled: execution.enabled }),
+  effectiveSampleExecution: () => ({ enabled: execution.sampleEnabled }),
+}));
 
 const { StageSectionsView, StageSections } = await import('./stage-sections');
 
@@ -99,15 +102,18 @@ describe('R1 stage sections and overview', () => {
 describe('R7 Visitor and member-viewer markup has no controls', () => {
   it('R7.1 R7.2 R14.1 contains no button, form, API path, "Verify live", or stage-actions marker, and shows stored text as characters', () => {
     // Feature: 06-resurrection-ui, Property 9: Visitor markup has no controls
+    // A Visitor never gets a control. A Member on a sample gets none while sample runs are off (see R18.13 below).
     fc.assert(
       fc.property(
         fc.constantFrom<StageAccess>('visitor', 'member-viewer'),
+        fc.boolean(),
         seanceArbitrary,
         reincarnationArbitrary,
         cursesArbitrary,
-        (access, seance, stored, curses) => {
+        (access, liveOn, seance, stored, curses) => {
           const corpse = corpseDetail({ isSample: true, userId: null, curses, curseCount: curses.length });
-          const html = render(access, { corpse, seance, reincarnation: stored });
+          const liveVerificationEnabled = access === 'visitor' ? liveOn : false;
+          const html = render(access, { corpse, seance, reincarnation: stored, liveVerificationEnabled });
           return FORBIDDEN_FOR_READERS.every((marker) => !html.includes(marker)) && !html.includes('<script');
         },
       ),
@@ -115,9 +121,39 @@ describe('R7 Visitor and member-viewer markup has no controls', () => {
     );
   });
 
+  it('R18.13 gives a Member on a sample one "Verify live" button with the sample help text, and nothing else', () => {
+    // Feature: 06-resurrection-ui, Property 9: Visitor markup has no controls
+    fc.assert(
+      fc.property(seanceArbitrary, reincarnationArbitrary, cursesArbitrary, (seance, stored, curses) => {
+        const corpse = corpseDetail({ isSample: true, userId: null, curses, curseCount: curses.length });
+        const html = render('member-viewer', { corpse, seance, reincarnation: stored, liveVerificationEnabled: true });
+        if (stored === null) return FORBIDDEN_FOR_READERS.every((marker) => !html.includes(marker));
+        return (
+          (html.match(/<button/g) ?? []).length === 1 &&
+          html.includes('>Verify live<') &&
+          html.includes('The result is shown here and is not stored.') &&
+          !html.includes('<form') &&
+          !html.includes('/api/') &&
+          !html.includes('Begin séance') &&
+          !html.includes('Begin reincarnation') &&
+          !html.includes('Approve spec') &&
+          !html.includes('<script')
+        );
+      }),
+      { numRuns: 100 },
+    );
+  });
+
   it('R7.1 gives a Visitor no control for a sample with every stage stored', () => {
     const html = render('visitor', { seance: seanceSpec(), reincarnation: reincarnation({ pbtPassed: null, totalRuns: null }) });
     for (const marker of FORBIDDEN_FOR_READERS) expect(html).not.toContain(marker);
+  });
+
+  it('R18.13 keeps the precomputed evidence of a sample visible next to the live button', () => {
+    const html = render('member-viewer', { seance: seanceSpec(), reincarnation: reincarnation() });
+    expect(html).toContain('Verified behavioral equivalence across 1,000 generated inputs.');
+    expect(html).toContain('>Verify live<');
+    expect(html).not.toContain('isolated environment');
   });
 
   it('R7.3 shows a Visitor a read-only notice with a sign-in link back to this corpse', () => {
@@ -284,6 +320,27 @@ describe('R2.8 R15.3 loading the stage data', () => {
       expect(off).toContain('Live verification is not available on this server.');
     } finally {
       execution.enabled = true;
+    }
+  });
+
+  it('R18.13 offers a Member the sample run from the kill switch decision only, and never a Visitor', async () => {
+    const sample = corpseDetail({ isSample: true, userId: null });
+    const view = buildScannerView(sample.curses, countSourceLines(sample.originalCode));
+    stages.load = async () => ({ seance: seanceSpec(), reincarnation: reincarnation() });
+    try {
+      // The flag for imported code is off, and the sample still gets its button.
+      execution.enabled = false;
+      execution.sampleEnabled = true;
+      const member = renderToStaticMarkup(await StageSections({ corpse: sample, viewer: viewerOf('member-1'), scannerView: view }));
+      const visitor = renderToStaticMarkup(await StageSections({ corpse: sample, viewer: null, scannerView: view }));
+      execution.sampleEnabled = false;
+      const killed = renderToStaticMarkup(await StageSections({ corpse: sample, viewer: viewerOf('member-1'), scannerView: view }));
+      expect(member).toContain('>Verify live<');
+      expect(visitor).not.toContain('Verify live');
+      expect(killed).not.toContain('Verify live');
+    } finally {
+      execution.enabled = true;
+      execution.sampleEnabled = true;
     }
   });
 

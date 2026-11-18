@@ -1,6 +1,6 @@
 // The state machine of one stage control (Requirement 9 criterion 3 and Requirement 11 criterion 8). Pure module: the
 // caller passes the clock in every event, so the reducer is deterministic and needs no timers.
-import { presentFailure, presentSuccess, type FailurePresentation } from './errors';
+import { presentFailure, presentLiveSuccess, presentSuccess, type FailurePresentation } from './errors';
 import type { PipelineOutcome, PipelineRoute } from './pipeline-client';
 
 export type ActionState =
@@ -29,7 +29,10 @@ export function actionReducer(state: ActionState, event: ActionEvent): ActionSta
     case 'finish': {
       if (state.phase !== 'pending') return state;
       const { outcome, route, now } = event;
-      if (outcome.kind === 'success') return { phase: 'done', message: presentSuccess(route, outcome.source) };
+      if (outcome.kind === 'success') {
+        const message = outcome.live === undefined ? presentSuccess(route, outcome.source) : presentLiveSuccess(outcome.live);
+        return { phase: 'done', message };
+      }
       const presentation = presentFailure(outcome, route);
       const retryAt = presentation.waitSeconds === null ? null : now + presentation.waitSeconds * 1000;
       return { phase: 'failed', presentation, retryAt };

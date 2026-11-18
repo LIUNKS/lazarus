@@ -14,12 +14,16 @@ const VERIFIED = { pbtPassed: true, totalRuns: 1000, executionTimeMs: 842 } as c
 const FAILED = { pbtPassed: false, totalRuns: 37, executionTimeMs: 12 } as const;
 const INCOMPLETE = { pbtPassed: true, totalRuns: null, executionTimeMs: null } as const;
 
-function render(access: StageAccess, stored: Reincarnation | null): string {
+/**
+ * `live` is the server decision for this corpse. It is off by default here, so a member-viewer gets no control; the
+ * R18.13 tests switch it on for a sample.
+ */
+function render(access: StageAccess, stored: Reincarnation | null, live = access === 'owner'): string {
   return renderToStaticMarkup(
     <LaboratoryPanel
       reincarnation={stored}
       access={access}
-      controls={controlsFor(access, seanceSpec(), stored)}
+      controls={controlsFor(access, seanceSpec(), stored, { liveVerificationEnabled: live })}
       corpseId={CORPSE_ID}
       currentPath={`/corpses/${CORPSE_ID}`}
     />,
@@ -57,6 +61,32 @@ describe('R16.11 R18.1 a Visitor and a member-viewer have no Verify_Control', ()
   it('R18.1 shows a Visitor the precomputed evidence of a sample and no control', () => {
     const html = render('visitor', reincarnation(VERIFIED));
     expect(html).toContain('Verified behavioral equivalence across 1,000 generated inputs.');
+    expect(html).not.toContain('data-stage-actions');
+    expect(html).not.toContain('<button');
+  });
+});
+
+describe('R18.13 a Member on a sample gets a live run while sample runs are on', () => {
+  it.each([
+    ['VERIFIED', VERIFIED],
+    ['FAILED', FAILED],
+    ['NOT_RUN', NOT_RUN],
+    ['INCOMPLETE', INCOMPLETE],
+  ])('R18.13 offers one "Verify live" button with the sample help text for a %s sample', (_state, fields) => {
+    const html = render('member-viewer', reincarnation(fields), true);
+    expect(count(html, 'data-stage-actions')).toBe(1);
+    expect(count(html, '<button')).toBe(1);
+    expect(html).toContain('>Verify live<');
+    expect(html).toContain('The result is shown here and is not stored.');
+    expect(html).not.toContain('isolated environment');
+  });
+
+  it('R18.13 R6.5 keeps the stored-result sentence of a NOT_RUN sample, because a live run stores nothing', () => {
+    expect(render('member-viewer', reincarnation(NOT_RUN), true)).toContain('No property-based test result is stored for this module.');
+  });
+
+  it('R18.13 never offers the live run to a Visitor, even with sample runs on', () => {
+    const html = render('visitor', reincarnation(VERIFIED), true);
     expect(html).not.toContain('data-stage-actions');
     expect(html).not.toContain('<button');
   });
