@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REASON_APPROVE_FIRST,
   REASON_RUN_SEANCE_FIRST,
+  REASON_VERIFY_OFF,
   resolveAccess,
   stageControls,
   summarizeStages,
@@ -22,6 +23,7 @@ const facts = (overrides: Partial<StageFacts> = {}): StageFacts => ({
   seanceApproved: false,
   hasReincarnation: false,
   verificationState: null,
+  liveVerificationEnabled: true,
   ...overrides,
 });
 
@@ -31,6 +33,7 @@ const factsArbitrary: fc.Arbitrary<StageFacts> = fc.record({
   seanceApproved: fc.boolean(),
   hasReincarnation: fc.boolean(),
   verificationState: fc.constantFrom(...STATES),
+  liveVerificationEnabled: fc.boolean(),
 });
 
 describe('R7.6 resolveAccess', () => {
@@ -69,7 +72,7 @@ describe('R8 stage controls gating', () => {
           available('seance') === !f.hasSeance &&
           available('approve') === (f.hasSeance && !f.seanceApproved) &&
           available('reincarnate') === (f.hasSeance && f.seanceApproved && !f.hasReincarnation) &&
-          available('verify') === (f.hasReincarnation && f.verificationState === 'NOT_RUN')
+          available('verify') === (f.hasReincarnation && f.verificationState === 'NOT_RUN' && f.liveVerificationEnabled)
         );
       }),
       { numRuns: 200 },
@@ -94,7 +97,7 @@ describe('R8 stage controls gating', () => {
           reasonOf(controls.scan) === null &&
           reasonOf(controls.seance) === null &&
           reasonOf(controls.approve) === null &&
-          reasonOf(controls.verify) === null
+          reasonOf(controls.verify) === (f.hasReincarnation && f.verificationState === 'NOT_RUN' && !f.liveVerificationEnabled ? REASON_VERIFY_OFF : null)
         );
       }),
       { numRuns: 200 },
@@ -104,6 +107,23 @@ describe('R8 stage controls gating', () => {
   it('R8.7 words the two reasons', () => {
     expect(REASON_RUN_SEANCE_FIRST).toBe('Run the séance first.');
     expect(REASON_APPROVE_FIRST).toBe('Approve the séance spec to enable reincarnation.');
+  });
+
+  it('R8.9 R18.10 withholds "Verify live" from an owner while the server has live verification off, and says why', () => {
+    const stored = { hasSeance: true, seanceApproved: true, hasReincarnation: true, verificationState: 'NOT_RUN' } as const;
+    expect(stageControls('owner', facts({ ...stored, liveVerificationEnabled: true })).verify).toEqual({ available: true });
+    expect(stageControls('owner', facts({ ...stored, liveVerificationEnabled: false })).verify).toEqual({
+      available: false,
+      reason: REASON_VERIFY_OFF,
+    });
+    expect(REASON_VERIFY_OFF).toBe('Live verification is not available on this server.');
+  });
+
+  it('R8.9 gives no reason about verification when the stored state is already final, whether or not the server runs it', () => {
+    for (const verificationState of ['VERIFIED', 'FAILED', 'INCOMPLETE'] as const) {
+      const controls = stageControls('owner', facts({ hasSeance: true, seanceApproved: true, hasReincarnation: true, verificationState, liveVerificationEnabled: false }));
+      expect(controls.verify).toEqual({ available: false, reason: null });
+    }
   });
 
   it('R8.2 R8.3 an owner of a new corpse can scan and start the séance, and nothing else', () => {

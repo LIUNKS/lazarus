@@ -39,7 +39,7 @@ The source of truth is the **Preconditions** section at the top of each `tasks.m
 | `03-pbt-verifier` | 01 | Work stays inside `packages/pbt-verifier/`. |
 | `07-sandboxed-execution` | 01, 03 | If `packages/pbt-verifier` is missing, the plan says to stop and ask. It also adds one subpath export to `pbt-verifier`. |
 | `05-llm-pipeline-api` | 01, 04 | Adds migration `V3` and depends on the scanner package. It does not use `pbt-verifier`. Its database tests need `TEST_DATABASE_URL`. |
-| `06-resurrection-ui` | 01, 04 | Built against a contract, with a fake `fetch`, so it can start before 05 and 08 exist. The "Verify live" control answers `VERIFICATION_DISABLED` while live verification is off, which is the default. |
+| `06-resurrection-ui` | 01, 04 | Built against a contract, with a fake `fetch`, so it can start before 05 and 08 exist. The "Verify live" control is not offered while live verification is off, which is the default, and the owner reads that live verification is not available. |
 | `08-live-verification-api` | 01, 03, 04, 05, 07 | Last of the chain. Adds a quota migration and the `POST /api/verify` route. Needs `TEST_DATABASE_URL` and the Flyway CLI for the database tests. |
 
 Order used in this project: **03, 07, 05, 08**, with **06** in any slot after 04. A shorter path to a working demo is 05 and 06, because the sample corpses already carry stored results; the chain 03, 07, 08 adds live verification, which is switched off by default.

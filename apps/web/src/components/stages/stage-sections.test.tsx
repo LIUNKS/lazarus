@@ -25,12 +25,20 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({}) }));
 // The data load is replaced, so a test can make it succeed or fail without a database.
 const stages = vi.hoisted(() => ({ load: async (): Promise<unknown> => ({ seance: null, reincarnation: null }) }));
 vi.mock('@/lib/data/load-stages', () => ({ loadStages: () => stages.load() }));
+// The execution decision reads the kill switch from the environment, which the test guards forbid. It is replaced too.
+const execution = vi.hoisted(() => ({ enabled: true }));
+vi.mock('@/lib/verification/execution', () => ({ effectiveExecution: () => ({ enabled: execution.enabled }) }));
 
 const { StageSectionsView, StageSections } = await import('./stage-sections');
 
 function render(
   access: StageAccess,
-  data: { corpse?: CorpseDetail; seance?: SeanceSpec | null; reincarnation?: Reincarnation | null } = {},
+  data: {
+    corpse?: CorpseDetail;
+    seance?: SeanceSpec | null;
+    reincarnation?: Reincarnation | null;
+    liveVerificationEnabled?: boolean;
+  } = {},
 ): string {
   const corpse = data.corpse ?? corpseDetail({ isSample: access !== 'owner', userId: access === 'owner' ? 'owner' : null });
   return renderToStaticMarkup(
@@ -40,6 +48,7 @@ function render(
       seance={data.seance ?? null}
       reincarnation={data.reincarnation ?? null}
       scannerView={buildScannerView(corpse.curses, countSourceLines(corpse.originalCode))}
+      liveVerificationEnabled={data.liveVerificationEnabled ?? true}
     />,
   );
 }
@@ -184,6 +193,26 @@ describe('R8 owner controls by stored state', () => {
     expect(html).toContain('Not verified yet.');
     expect(html).not.toContain('No property-based test result is stored for this module.');
   });
+
+  it('R8.9 R18.10 shows no "Verify live" control while live verification is off, and tells the owner why', () => {
+    const html = render('owner', {
+      seance: seanceSpec(),
+      reincarnation: reincarnation({ pbtPassed: null, totalRuns: null, executionTimeMs: null }),
+      liveVerificationEnabled: false,
+    });
+    expect(html).not.toContain('Verify live');
+    expect(html).not.toContain('counts toward a separate verification limit.');
+    expect(html).toContain('Live verification is not available on this server.');
+    expect(html).toContain('Not verified yet.');
+    // The reincarnation itself is still shown.
+    expect(html).toContain('Resurrected TypeScript');
+  });
+
+  it('R8.9 keeps a final verification result visible with live verification off, and adds no reason', () => {
+    const html = render('owner', { seance: seanceSpec(), reincarnation: reincarnation(), liveVerificationEnabled: false });
+    expect(html).toContain('Verified behavioral equivalence across 1,000 generated inputs.');
+    expect(html).not.toContain('Live verification is not available on this server.');
+  });
 });
 
 describe('R2.8 R15.3 loading the stage data', () => {
@@ -239,6 +268,23 @@ describe('R2.8 R15.3 loading the stage data', () => {
     expect(asVisitor).not.toContain('data-stage-actions');
     expect(asOther).toContain('Sample results are precomputed and read-only.');
     expect(asVisitor).toContain('/sign-in?next=');
+  });
+
+  it('R8.9 offers "Verify live" to the owner only while the server execution decision is enabled', async () => {
+    const own = corpseDetail({ isSample: false, userId: 'member-1' });
+    const view = buildScannerView(own.curses, countSourceLines(own.originalCode));
+    stages.load = async () => ({ seance: seanceSpec(), reincarnation: reincarnation({ pbtPassed: null, totalRuns: null, executionTimeMs: null }) });
+    try {
+      execution.enabled = true;
+      const on = renderToStaticMarkup(await StageSections({ corpse: own, viewer: viewerOf('member-1'), scannerView: view }));
+      execution.enabled = false;
+      const off = renderToStaticMarkup(await StageSections({ corpse: own, viewer: viewerOf('member-1'), scannerView: view }));
+      expect(on).toContain('>Verify live<');
+      expect(off).not.toContain('Verify live');
+      expect(off).toContain('Live verification is not available on this server.');
+    } finally {
+      execution.enabled = true;
+    }
   });
 
   it('R2.7 renders the stages that the load returned', async () => {

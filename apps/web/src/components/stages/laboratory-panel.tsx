@@ -15,7 +15,8 @@ import { formatDateUtc } from '@/lib/ui/format';
  * - the reincarnation control is the first child, always rendered for the owner;
  * - the "Verify live" control sits directly below the evidence block, always rendered for an owner who has a stored
  *   reincarnation. After a verification the stored state is final, `available` becomes false, the button disappears, and the
- *   success message stays.
+ *   success message stays. While the server has live verification switched off, `available` is false from the start and
+ *   the owner reads a short reason below the evidence instead of a button.
  * A Visitor and a Member looking at a sample get neither control, and no `StageActions` element at all.
  */
 export function LaboratoryPanel({
@@ -36,6 +37,7 @@ export function LaboratoryPanel({
   const reincarnate = ROUTE_COPY.reincarnate;
   const verify = ROUTE_COPY.verify;
   const reason = !controls.reincarnate.available ? controls.reincarnate.reason : null;
+  const verifyReason = !controls.verify.available ? controls.verify.reason : null;
 
   return (
     <div className="space-y-4">
@@ -72,6 +74,7 @@ export function LaboratoryPanel({
               currentPath={currentPath}
             />
           ) : null}
+          {owner && verifyReason !== null ? <p className="text-sm text-muted-foreground">{verifyReason}</p> : null}
           <p data-reveal className="text-sm text-muted-foreground">
             Target stack: {reincarnation.targetStack}. Created{' '}
             <time dateTime={reincarnation.createdAt}>{formatDateUtc(reincarnation.createdAt)}</time>.
