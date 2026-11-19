@@ -256,11 +256,12 @@ A successful response has status 200 and this shape:
 }
 ```
 
-The values come from the stored row after the request, never directly from the sandbox result. `source` is one of:
+The values come from the stored row after the request, never directly from the sandbox result. The one exception is `live`: a sample run is never stored, so its three result values come from the checked run result. `source` is one of:
 
 | Source | Meaning |
 |---|---|
-| `precomputed` | The corpse is a sample. Its stored result is returned and nothing runs. |
+| `precomputed` | The corpse is a sample and the caller is a visitor. Its stored result is returned and nothing runs. |
+| `live` | The corpse is a sample and the caller is a signed-in member. The sample ran on newly generated inputs, and the result is returned without being stored. |
 | `stored` | The corpse already has a verdict (`pbt_passed` is not NULL). It is returned and nothing runs. |
 | `executed` | This request ran the sandbox and stored the result. |
 
@@ -278,7 +279,9 @@ For a corpse of the signed-in member the route checks, in this order, and answer
 8. The Gate of the Sandbox_Runner grants a Lease and the run completes.
 9. The result is stored through `record_verification`.
 
-A visitor gets `precomputed` for a visible sample and `AUTH_REQUIRED` for anything else. The sample, `stored`, and visitor paths never read the kill switch, never reserve quota, and never call the sandbox.
+A visitor gets `precomputed` for a visible sample and `AUTH_REQUIRED` for anything else. The visitor and `stored` paths never read the kill switch, never reserve quota, and never call the sandbox.
+
+For a sample and a signed-in member, the route runs the sample live, in this order: the kill switch is off (otherwise `VERIFICATION_DISABLED`); the entry function can be read from the Séance spec of the sample (otherwise `SEANCE_REQUIRED`); the quota is reserved; the run completes. The answer has `source` `live`, and nothing is written except the quota reservation, so the precomputed row stays as the migrations stored it. Sample code is written and reviewed in the migrations, so the Gate runs it in the server process through the Verifier, and `USER_EXECUTION_ENABLED` does not apply to it. Code that a member imported never runs this way.
 
 ### Limits
 
@@ -289,12 +292,12 @@ The values are in `apps/web/src/lib/verification/limits.ts`:
 - 1,000 generated inputs per run, with a seed chosen by the server.
 - 1 concurrent run per user and 4 in total.
 
-Each run that passes the quota step uses one unit of quota, whatever its outcome. The concurrency limits apply per server process, not across instances, and a development hot reload resets them.
+Each run that passes the quota step uses one unit of quota, whatever its outcome, and sample runs share these limits. The concurrency limits apply per server process, not across instances, and a development hot reload resets them. They count sandbox runs only: a sample run in the server process takes no Lease, so the quota is the only limit on sample runs.
 
 ### Execution switches
 
 - `USER_EXECUTION_ENABLED` in `apps/web/src/lib/verification/flags.ts` is shipped as `false`. While it is `false`, every request that reaches step 5 answers `VERIFICATION_DISABLED` and nothing runs. Flipping it is a deliberate, reviewed code change that a maintainer makes only after the hardening recommended in the Threat_Model of `07-sandboxed-execution` is judged adequate for the intended audience.
-- `LAZARUS_SANDBOX_KILL_SWITCH` is a server-only emergency stop. A value of `1` or `true` (any case, surrounding spaces ignored) engages it; unset, empty, `0`, or `false` leaves it off. Any other value is invalid and is treated as engaged (fail closed); the server configuration check reports it without its value. The route reads it on every request before the quota step, so engaging it stops new runs without a code change.
+- `LAZARUS_SANDBOX_KILL_SWITCH` is a server-only emergency stop. A value of `1` or `true` (any case, surrounding spaces ignored) engages it; unset, empty, `0`, or `false` leaves it off. Any other value is invalid and is treated as engaged (fail closed); the server configuration check reports it without its value. The route reads it on every request before the quota step, so engaging it stops new runs without a code change. It stops sample runs too, and the page then shows no "Verify live" button on a sample.
 
 ### Evidence and limitations
 
@@ -367,7 +370,7 @@ A navigation block above the sections links to each one and states its state in 
 | Viewer | Controls |
 |---|---|
 | Visitor (not signed in) | None. The page holds no button, no form, and no request to `/api/`. It shows a notice that the results are precomputed and read-only, with a link to sign in. A visitor can never start a model call. |
-| Member looking at a sample | None. The notice says that sample results are precomputed and read-only. |
+| Member looking at a sample | "Verify live" only, while the kill switch is off. It runs the sample again on newly generated inputs and shows the result without storing it. The notice says that sample results are precomputed and read-only, and the stored evidence stays on the page. |
 | Owner of the corpse | The scan, the start of the séance, the approval, the start of the reincarnation, and "Verify live", each only while it makes sense for what is stored. A control that is not available shows its reason, for example "Approve the séance spec to enable reincarnation." A result that already exists is never offered for regeneration. |
 
 ### Verification states
@@ -385,9 +388,11 @@ Only `VERIFIED` uses the emerald color, and the state is always written as text.
 
 ### Verify live
 
-"Verify live" runs the legacy and the modern function in an isolated environment on generated inputs. It calls `POST /api/verify` (see the Verification API section). It appears only for the owner of a corpse that has a stored reincarnation in the state `NOT_RUN`. It does not appear for `VERIFIED`, `FAILED`, or `INCOMPLETE`, because those are final results that the route never replaces, and it does not appear for a visitor or for a member looking at a sample.
+"Verify live" runs the legacy and the modern function in an isolated environment on generated inputs. It calls `POST /api/verify` (see the Verification API section). It appears only for the owner of a corpse that has a stored reincarnation in the state `NOT_RUN`, and only while the server runs live verification. It does not appear for `VERIFIED`, `FAILED`, or `INCOMPLETE`, because those are final results that the route never replaces, and it never appears for a visitor.
 
-The control stays visible and enabled even when the server has live verification switched off, which is the default. What each failure message means:
+A signed-in member looking at a sample gets "Verify live" in every state while the kill switch is off. That run is not stored, so the page does not reload. The message under the button gives the result with the exact run count, for example "The live check finished. Verified behavioral equivalence across 1,000 newly generated inputs. This result is shown here only and was not stored." The precomputed evidence above it does not change.
+
+While the server has live verification switched off, which is the default, the button is not shown. The owner reads "Live verification is not available on this server." below the evidence block instead. The page decides this on the server from the reviewed flag and the kill switch (see the Verification API section). If the flag changes after the page was rendered, the server still answers `VERIFICATION_DISABLED` to a request, and the button stays enabled with the message below. What each failure message means:
 
 | Message | Code | Meaning |
 |---|---|---|
@@ -412,7 +417,7 @@ The routes return one JSON document and can take up to about two minutes, so the
 
 - A sample shows "No curses are stored", "No séance is stored", or "No reincarnation is stored": the sample rows come from the database migrations. Run `pnpm db:migrate`.
 - The scan, the séance, and the reincarnation answer with "The service is unavailable right now": they need the Pipeline API and its configuration (see the Pipeline API section, including the model settings).
-- "Verify live" answers that live verification is switched off: the Verification API is deployed, but the server keeps user execution disabled, which is the default. Turning it on is a reviewed code change and is described in the Verification API section.
+- There is no "Verify live" button and the Laboratory says that live verification is not available: the server keeps user execution disabled, which is the default. Turning it on is a reviewed code change and is described in the Verification API section.
 - A button stays disabled: a request is pending, or the server asked the page to wait. The message under the button says which.
 
 ### Manual verification
@@ -421,8 +426,9 @@ The automated tests render the sections to static markup and test the logic of t
 
 1. As a visitor, open each sample. Check the three sections and the exact run count, and check that the Network tab shows no request to `/api/`.
 2. Sign in, import legacy code, and run the scan. Check the curses, the marked lines in the source, and the "Line N" links.
-3. Begin the séance, read the spec, approve it, and begin the reincarnation. The Laboratory should show "Not verified yet." and a "Verify live" button.
-4. Press "Verify live". With live verification switched off, expect the message that it is switched off, and expect the button to stay enabled. With it switched on, expect the evidence block with the exact run count, or the text for a failed run.
+3. Begin the séance, read the spec, approve it, and begin the reincarnation. The Laboratory should show "Not verified yet." With live verification switched on it also shows a "Verify live" button. With it switched off it shows no button and the text "Live verification is not available on this server."
+4. With live verification switched on, press "Verify live" and expect the evidence block with the exact run count, or the text for a failed run.
 5. Import the same code again as a second corpse and begin the séance. Expect the message that a stored result was reused and that no model request was made.
 6. Reach a request limit and check the waiting message and the disabled button.
 7. Use only the keyboard, switch on reduced motion, throttle the network to see the pending state, and check a viewport of 360 px width.
+8. Signed in, open a sample and press "Verify live". Expect the live message with the exact run count and the words "was not stored", and expect the precomputed evidence above it to stay the same after a reload. Signed out, the same sample shows no button.

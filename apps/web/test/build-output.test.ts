@@ -84,3 +84,27 @@ describe('R15 built client bundles', () => {
     expect(bundle.includes('prefers-reduced-motion')).toBe(true);
   }, 300_000);
 });
+
+describe('R6.7 R13.7 the server output of POST /api/verify (08-live-verification-api)', () => {
+  // Uses the build of the test above. The route loads the Sandbox_Runner with an import that file tracing does not
+  // follow, so this runs a real sample and checks that every file it loads or reads is in the trace of the route.
+  it('lists every file and pnpm link that a live sample run needs', () => {
+    const trace = path.join(APP, DIST, 'server', 'app', 'api', 'verify', 'route.js.nft.json');
+    expect(existsSync(trace), 'the build of the previous test wrote the trace of the route').toBe(true);
+    const check = spawnSync(process.execPath, [path.join(APP, 'test', 'support', 'verify-trace-check.mjs'), trace], { cwd: APP, encoding: 'utf8' });
+    expect(check.status, check.stderr).toBe(0);
+    const report = JSON.parse(check.stdout.trim().split('\n').at(-1) ?? '{}') as {
+      status: string;
+      executor: string;
+      totalRuns: number | null;
+      usedFiles: number;
+      missingFiles: string[];
+      missingLinks: string[];
+    };
+    expect(report).toMatchObject({ status: 'PASSED', executor: 'in-process', totalRuns: 100 });
+    // Sanity check of the recording itself: the run loads the runner, the Verifier, fast-check, and TypeScript.
+    expect(report.usedFiles).toBeGreaterThan(50);
+    expect(report.missingFiles).toEqual([]);
+    expect(report.missingLinks).toEqual([]);
+  }, 120_000);
+});

@@ -77,13 +77,20 @@ export function viewerOf(memberId: string): Viewer {
 }
 
 /** The controls the page computes from what is stored, so a test does not repeat the page logic. */
-export function controlsFor(access: StageAccess, seance: SeanceSpec | null, stored: Reincarnation | null): StageControls {
+export function controlsFor(
+  access: StageAccess,
+  seance: SeanceSpec | null,
+  stored: Reincarnation | null,
+  options: { liveVerificationEnabled?: boolean } = {},
+): StageControls {
   const facts: StageFacts = {
     curseCount: 0,
     hasSeance: seance !== null,
     seanceApproved: seance !== null && seance.approvedAt !== null,
     hasReincarnation: stored !== null,
     verificationState: stored === null ? null : verificationState(stored),
+    isSample: access !== 'owner',
+    liveVerificationEnabled: options.liveVerificationEnabled ?? true,
   };
   return stageControls(access, facts);
 }
