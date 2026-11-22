@@ -1,8 +1,11 @@
 import { redirect } from 'next/navigation';
 import { signInWithGitHub } from '@/app/sign-in/actions';
+import { CapabilityList } from '@/components/onboarding/capability-list';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getViewer } from '@/lib/auth/viewer';
+import { TRUST_LINE } from '@/lib/onboarding/copy';
+import { liveFlags } from '@/lib/onboarding/live-flags';
 import { safeRedirectPath } from '@/lib/security/safe-redirect';
 
 export const dynamic = 'force-dynamic';
@@ -23,13 +26,17 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
             the samples without signing in.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form action={signInWithGitHub}>
-            <input type="hidden" name="next" value={next} />
-            <Button type="submit" className="w-full">
-              Continue with GitHub
-            </Button>
-          </form>
+        <CardContent className="space-y-5">
+          <CapabilityList live={liveFlags()} />
+          <div className="space-y-2">
+            <form action={signInWithGitHub}>
+              <input type="hidden" name="next" value={next} />
+              <Button type="submit" className="w-full">
+                Continue with GitHub
+              </Button>
+            </form>
+            <p className="text-xs text-muted-foreground">{TRUST_LINE}</p>
+          </div>
         </CardContent>
       </Card>
     </div>

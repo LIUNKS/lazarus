@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useReducer, useRef, useState } from 'react';
+import { Heartbeat } from '@/animations/heartbeat';
 import { Notice } from '@/components/notice';
 import { Button } from '@/components/ui/button';
 import { INITIAL_ACTION_STATE, actionReducer, isLocked } from '@/lib/stages/action-state';
@@ -89,7 +90,7 @@ export function StageActions({ route, corpseId, available, label, note, pendingT
         <Notice>
           <p>{pendingText}</p>
           {/* Indeterminate on purpose: the routes return one JSON document, so there is no progress value to show. */}
-          <span aria-hidden="true" className="mt-2 block h-1 w-full rounded bg-muted motion-safe:animate-pulse" />
+          <Heartbeat className="mt-2" />
         </Notice>
       ) : null}
       {state.phase === 'done' ? <Notice>{state.message}</Notice> : null}
