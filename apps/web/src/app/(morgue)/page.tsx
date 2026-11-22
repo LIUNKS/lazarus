@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ScrambleHeading } from '@/animations/scramble-heading';
 import { CorpseGrid } from '@/components/corpse-grid';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
@@ -35,7 +36,7 @@ export default async function MorguePage({ searchParams }: { searchParams: Searc
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">The Morgue</h1>
+        <ScrambleHeading text="The Morgue" className="text-3xl font-semibold" />
         <p className="max-w-2xl text-muted-foreground">
           Dead JavaScript lies here. Open a sample corpse to read its legacy source, or sign in to import your own.
         </p>

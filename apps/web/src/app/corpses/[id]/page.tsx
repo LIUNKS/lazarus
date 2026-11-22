@@ -1,5 +1,8 @@
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { AnchorGlide } from '@/animations/anchor-glide';
+import { ScanBeam } from '@/animations/scan-beam';
+import { ScrollProgress } from '@/animations/scroll-progress';
 import { CodeView } from '@/components/code-view';
 import { DeleteCorpseButton } from '@/components/delete-corpse-button';
 import { ErrorState } from '@/components/error-state';
@@ -82,8 +85,12 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
         <h2 id="source-heading" className="text-xl font-semibold">
           Legacy source
         </h2>
-        <CodeView code={corpse.originalCode} markedLines={scannerView.markedLines} />
+        <ScanBeam markedLines={[...scannerView.markedLines]} lineCount={countSourceLines(corpse.originalCode)}>
+          <CodeView code={corpse.originalCode} markedLines={scannerView.markedLines} />
+        </ScanBeam>
       </section>
+      <AnchorGlide />
+      <ScrollProgress />
 
       <Suspense fallback={<StagesSkeleton />}>
         <StageSections corpse={corpse} viewer={viewer} scannerView={scannerView} />

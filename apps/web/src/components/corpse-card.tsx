@@ -17,7 +17,7 @@ export function CorpseCard({ corpse, actions }: { corpse: CorpseSummary; actions
         href={`/corpses/${corpse.id}`}
         className="block flex-1 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2"
       >
-        <Card className="h-full transition-colors hover:bg-accent/40">
+        <Card className="h-full transition-[translate,border-color,background-color] duration-200 hover:border-ring/60 hover:bg-accent/40 motion-safe:hover:-translate-y-0.5">
           <CardHeader>
             <CardTitle className="font-serif text-lg break-words">{corpse.title}</CardTitle>
           </CardHeader>
