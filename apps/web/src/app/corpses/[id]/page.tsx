@@ -8,6 +8,7 @@ import { DeleteCorpseButton } from '@/components/delete-corpse-button';
 import { ErrorState } from '@/components/error-state';
 import { LanguageBadge } from '@/components/language-badge';
 import { Notice } from '@/components/notice';
+import { SampleInvite } from '@/components/onboarding/sample-invite';
 import { StageSections } from '@/components/stages/stage-sections';
 import { StagesSkeleton } from '@/components/stages/stages-skeleton';
 import { StatusBadge } from '@/components/status-badge';
@@ -95,6 +96,7 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
       <Suspense fallback={<StagesSkeleton />}>
         <StageSections corpse={corpse} viewer={viewer} scannerView={scannerView} />
       </Suspense>
+      {corpse.isSample ? <SampleInvite signedIn={viewer !== null} /> : null}
     </article>
   );
 }
