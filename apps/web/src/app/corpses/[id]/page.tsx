@@ -1,10 +1,14 @@
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { AnchorGlide } from '@/animations/anchor-glide';
+import { ScanBeam } from '@/animations/scan-beam';
+import { ScrollProgress } from '@/animations/scroll-progress';
 import { CodeView } from '@/components/code-view';
 import { DeleteCorpseButton } from '@/components/delete-corpse-button';
 import { ErrorState } from '@/components/error-state';
 import { LanguageBadge } from '@/components/language-badge';
 import { Notice } from '@/components/notice';
+import { SampleInvite } from '@/components/onboarding/sample-invite';
 import { StageSections } from '@/components/stages/stage-sections';
 import { StagesSkeleton } from '@/components/stages/stages-skeleton';
 import { StatusBadge } from '@/components/status-badge';
@@ -82,12 +86,17 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
         <h2 id="source-heading" className="text-xl font-semibold">
           Legacy source
         </h2>
-        <CodeView code={corpse.originalCode} markedLines={scannerView.markedLines} />
+        <ScanBeam markedLines={[...scannerView.markedLines]} lineCount={countSourceLines(corpse.originalCode)}>
+          <CodeView code={corpse.originalCode} markedLines={scannerView.markedLines} />
+        </ScanBeam>
       </section>
+      <AnchorGlide />
+      <ScrollProgress />
 
       <Suspense fallback={<StagesSkeleton />}>
         <StageSections corpse={corpse} viewer={viewer} scannerView={scannerView} />
       </Suspense>
+      {corpse.isSample ? <SampleInvite signedIn={viewer !== null} /> : null}
     </article>
   );
 }

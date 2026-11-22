@@ -212,20 +212,21 @@ describe('R13 accessibility, theme, and motion (static checks)', () => {
     }
   });
 
-  it('R13.6 adds no GSAP code and no animation timeline: only the existing Reveal animates the stage content', () => {
+  // R13.6 is superseded by 09-motion-ux Requirements 1 and 4: the stage modules may use the client components of
+  // src/animations/, but they still never import gsap themselves.
+  it('09 R1.1 keeps GSAP out of the stage modules: they animate only through the components of src/animations/', () => {
     for (const file of allSources) {
-      expect(importSpecifiers(file), rel(file)).not.toContain('gsap');
-      expect(importSpecifiers(file), rel(file)).not.toContain('@gsap/react');
+      for (const specifier of importSpecifiers(file)) expect(/^(?:gsap|@gsap\/react)(?:\/|$)/.test(specifier), `${rel(file)}: ${specifier}`).toBe(false);
     }
     const reveal = readFileSync(path.join(COMPONENTS_DIR, 'stage-sections.tsx'), 'utf8');
     expect(reveal).toContain("from '@/animations/reveal-section'");
   });
 
-  it('R13.6 gives the pending indicator only a CSS animation behind the motion-safe variant', () => {
+  it('09 R4.1 shows the Heartbeat as the pending indicator and no CSS animation outside the motion-safe variant', () => {
     const source = readFileSync(path.join(COMPONENTS_DIR, 'stage-actions.tsx'), 'utf8');
-    const animations = source.match(/\S*animate-\S*/g) ?? [];
-    expect(animations.length).toBeGreaterThan(0);
-    for (const name of animations) expect(name.startsWith('motion-safe:'), name).toBe(true);
+    expect(importSpecifiers(path.join(COMPONENTS_DIR, 'stage-actions.tsx'))).toContain('@/animations/heartbeat');
+    expect(source).toContain('<Heartbeat ');
+    for (const name of source.match(/\S*animate-\S*/g) ?? []) expect(name.startsWith('motion-safe:'), name).toBe(true);
   });
 
   it('R13.3 announces pending and success politely and failures as an alert, through the shared Notice', () => {

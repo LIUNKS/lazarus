@@ -1,3 +1,4 @@
+import { EvidenceArrival } from '@/animations/evidence-arrival';
 import { CodeView } from '@/components/code-view';
 import { StageActions } from '@/components/stages/stage-actions';
 import { VerificationEvidence } from '@/components/stages/verification-evidence';
@@ -43,6 +44,9 @@ export function LaboratoryPanel({
   const verifyNote = owner ? verify.note : VERIFY_SAMPLE_HELP_TEXT;
   const reason = !controls.reincarnate.available ? controls.reincarnate.reason : null;
   const verifyReason = !controls.verify.available ? controls.verify.reason : null;
+  // Only the owner's run stores a result, so only then is the "no stored result" sentence replaced by the button.
+  const view =
+    reincarnation === null ? null : buildVerificationView(reincarnation, { verifyAvailable: owner && controls.verify.available });
 
   return (
     <div className="space-y-4">
@@ -59,15 +63,16 @@ export function LaboratoryPanel({
         />
       ) : null}
       {owner && reason !== null ? <p className="text-sm text-muted-foreground">{reason}</p> : null}
-      {reincarnation === null ? (
+      {reincarnation === null || view === null ? (
         <div data-reveal className="space-y-1 text-sm text-muted-foreground">
           <p>No reincarnation is stored for this corpse.</p>
           {owner ? null : <p>{SAMPLE_MIGRATION_HINT}</p>}
         </div>
       ) : (
         <>
-          {/* Only the owner's run stores a result, so only then is the "no stored result" sentence replaced by the button. */}
-          <VerificationEvidence view={buildVerificationView(reincarnation, { verifyAvailable: owner && controls.verify.available })} />
+          <EvidenceArrival runCount={view.runCount} tone={view.tone}>
+            <VerificationEvidence view={view} />
+          </EvidenceArrival>
           {showVerify ? (
             <StageActions
               route="verify"

@@ -1,5 +1,10 @@
 import Link from 'next/link';
+import { ScrambleHeading } from '@/animations/scramble-heading';
 import { CorpseGrid } from '@/components/corpse-grid';
+import { FirstSteps } from '@/components/onboarding/first-steps';
+import { HowItWorks } from '@/components/onboarding/how-it-works';
+import { SignInInvite } from '@/components/onboarding/sign-in-invite';
+import { liveFlags } from '@/lib/onboarding/live-flags';
 import { EmptyState } from '@/components/empty-state';
 import { ErrorState } from '@/components/error-state';
 import { Notice } from '@/components/notice';
@@ -35,27 +40,27 @@ export default async function MorguePage({ searchParams }: { searchParams: Searc
   return (
     <div className="space-y-10">
       <section className="space-y-3">
-        <h1 className="text-3xl font-semibold">The Morgue</h1>
+        <ScrambleHeading text="The Morgue" className="text-3xl font-semibold" />
         <p className="max-w-2xl text-muted-foreground">
           Dead JavaScript lies here. Open a sample corpse to read its legacy source, or sign in to import your own.
         </p>
         {authError ? <Notice tone="curse">{authError}</Notice> : null}
-        {!viewer ? (
-          <Notice title="You are exploring in read-only mode">
-            The samples below are read-only and their results are precomputed. Sign in with GitHub to import your own
-            code and keep a private history in The Crypt.
-          </Notice>
-        ) : null}
       </section>
+      <HowItWorks />
 
       {!data.ok ? (
         <ErrorState what="the corpses" />
       ) : (
         <>
           <section className="space-y-4" aria-labelledby="samples-heading">
-            <h2 id="samples-heading" className="text-xl font-semibold">
-              Sample corpses
-            </h2>
+            <div className="space-y-1">
+              <h2 id="samples-heading" className="text-xl font-semibold">
+                Sample corpses
+              </h2>
+              {!viewer ? (
+                <p className="text-sm text-muted-foreground">Read-only. Their results are precomputed, so you can explore every stage without signing in.</p>
+              ) : null}
+            </div>
             {data.samples.length === 0 ? (
               <EmptyState title="The samples are not loaded">
                 Apply the database migrations with <code>pnpm db:migrate</code> to load the three sample corpses.
@@ -65,15 +70,14 @@ export default async function MorguePage({ searchParams }: { searchParams: Searc
             )}
           </section>
 
+          {!viewer ? <SignInInvite live={liveFlags()} /> : null}
           {viewer ? (
             <section className="space-y-4" aria-labelledby="owned-heading">
               <h2 id="owned-heading" className="text-xl font-semibold">
                 Your corpses
               </h2>
               {data.owned.length === 0 ? (
-                <EmptyState title="Nothing buried yet" action={{ href: '/import', label: 'Import legacy code' }}>
-                  Import a legacy JavaScript file to see it here.
-                </EmptyState>
+                <FirstSteps />
               ) : (
                 <>
                   <CorpseGrid corpses={data.owned} label="Your corpses" />

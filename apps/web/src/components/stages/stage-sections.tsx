@@ -50,7 +50,7 @@ export function StageSectionsView({
     <div className="space-y-8">
       <StageOverview summaries={summarizeStages(facts)} />
       <ReadonlyNotice access={access} currentPath={currentPath} />
-      <Reveal className="space-y-10">
+      <Reveal className="space-y-10" trigger="scroll">
         <StageSection id="hex-scanner" title="Hex Scanner">
           <HexScannerPanel view={scannerView} access={access} controls={controls} corpseId={corpse.id} currentPath={currentPath} />
         </StageSection>
