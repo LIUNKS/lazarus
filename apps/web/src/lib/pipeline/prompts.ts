@@ -66,10 +66,20 @@ export const REINCARNATE_INSTRUCTIONS = [
   'pbtTestCode is the body of a function with the parameters fc, legacyFn, modernFn, assertEquivalent, and numRuns.',
   'pbtTestCode contains no import, export, or require. It never calls fc.assert or fc.check, and it never sets numRuns itself.',
   'pbtTestCode ends with a return statement of fc.property(...) or fc.asyncProperty(...), and the property calls assertEquivalent(input).',
+  // 11-multi-argument-entry: the sixth parameter and the rule for an entry function with several parameters.
+  'pbtTestCode may also use a sixth parameter, assertEquivalentArgs. The entry parameters line of the prompt lists the parameters of the entry function.',
+  'When the entry function has no parameter or one parameter, the property calls assertEquivalent(input).',
+  'When the entry function has two or more parameters, the property calls assertEquivalentArgs(args) instead, with an array that holds one generated value per parameter, in the order of the parameters, and never calls assertEquivalent.',
+  'The modern entry function keeps the parameters of the legacy function, in the same order.',
   'Example of a valid pbtTestCode:',
   'const inputArbitrary = fc.record({ values: fc.array(fc.integer(), { maxLength: 8 }) });',
   'return fc.property(inputArbitrary, (input) => {',
   '  assertEquivalent(input);',
+  '});',
+  'Example of a valid pbtTestCode for an entry function with the parameters weightKg, zone, and isExpress:',
+  'const argsArbitrary = fc.tuple(fc.double({ min: 0, max: 100, noNaN: true }), fc.constantFrom(\'local\', \'national\', \'international\'), fc.boolean());',
+  'return fc.property(argsArbitrary, (args) => {',
+  '  assertEquivalentArgs(args);',
   '});',
   ...WORDING_RULES,
 ].join('\n');
@@ -99,6 +109,8 @@ export interface ReincarnatePromptInput {
   /** The JSON text of `invariants_json`. */
   invariantsJsonText: string;
   curses: readonly CurseRowOut[];
+  /** The Entry_Params of the entry function, or null when it is not among the Entry_Candidates (11-multi-argument-entry). */
+  entryParams?: readonly string[] | null;
 }
 
 export interface RetryInfo {
@@ -139,6 +151,8 @@ export const RULE_HINTS: Readonly<Record<string, string>> = {
   TEST_SYNTAX: 'pbtTestCode must be valid JavaScript for the body of a function, with at most 10000 characters.',
   TEST_CONTRACT: 'pbtTestCode must have no import, export, or require, must end with return fc.property(...) or return fc.asyncProperty(...), must not call fc.assert or fc.check, and must not set numRuns.',
   TEST_ASSERT_EQUIVALENT: 'pbtTestCode must call assertEquivalent(input) inside the property.',
+  TEST_ASSERT_EQUIVALENT_ARGS:
+    'The entry function has two or more parameters, so pbtTestCode must call assertEquivalentArgs(args) inside the property with an array of one generated value per parameter, in order, and must not call assertEquivalent.',
 };
 
 /** Appends fixed rule names, their fixed explanations, and compiler messages only. Text of the rejected output never appears. */
@@ -200,9 +214,13 @@ export function cursesJsonText(curses: readonly CurseRowOut[]): string {
 }
 
 export function buildReincarnatePrompts(input: ReincarnatePromptInput, delimiter: string, retry: RetryInfo | null): Prompts {
+  const entryParams = input.entryParams ?? null;
   const prompt = [
     `source_language: ${input.sourceLanguage}`,
     '',
+    ...(entryParams === null
+      ? []
+      : ['Entry parameters, as JSON derived from the untrusted code (one generated value per parameter):', JSON.stringify(entryParams), '']),
     UNTRUSTED_BLOCK_SENTENCE,
     block('original_code', delimiter, input.originalCode),
     block('requirements_md', delimiter, input.requirementsMd),

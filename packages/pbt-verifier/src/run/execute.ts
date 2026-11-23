@@ -3,7 +3,7 @@ import { safeStringify, truncate } from '../equivalence/outcome.js';
 import { UncloneableInputError } from '../sandbox/cloner.js';
 import { describeThrown } from '../sandbox/context.js';
 import type { Counterexample, ErrorCode } from '../types.js';
-import { EquivalenceError, SideThrow, type RunState } from './run-state.js';
+import { CallStyleError, EquivalenceError, SideThrow, type RunState } from './run-state.js';
 
 export const MAX_INPUT_LENGTH = 2000;
 const UNAVAILABLE = 'unavailable';
@@ -104,6 +104,9 @@ export async function executeProperty(
   }
   if (state.firstDifferenceSeen || cause instanceof EquivalenceError || isReturnedFalse(cause)) {
     return failedResult(details, options);
+  }
+  if (cause instanceof CallStyleError) {
+    return { status: 'ERROR', code: 'TEST_CODE_ERROR', message: cause.message };
   }
   if (cause instanceof SideThrow) {
     return {

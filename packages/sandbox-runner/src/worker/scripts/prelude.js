@@ -26,6 +26,7 @@ var JSONStringify = JSON.stringify;
 var ObjectCreate = Object.create;
 var ObjectIs = Object.is;
 var ObjectKeys = Object.keys;
+var ReflectApply = Reflect.apply;
 var ReflectDefineProperty = Reflect.defineProperty;
 var ReflectGetOwnPropertyDescriptor = Reflect.getOwnPropertyDescriptor;
 

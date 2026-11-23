@@ -230,7 +230,8 @@ async function runProperty(legacy: LoadedSide, modern: LoadedSide): Promise<stri
 
   // The Test_Code is compiled as a function body with the vm API. That is not string evaluation, so
   // it works with dynamic code generation disabled, and the body cannot close the function early.
-  const parameters = ['fc', 'legacyFn', 'modernFn', 'assertEquivalent', 'numRuns'];
+  // The sixth parameter comes from 11-multi-argument-entry; a body that ignores it behaves as before.
+  const parameters = ['fc', 'legacyFn', 'modernFn', 'assertEquivalent', 'numRuns', 'assertEquivalentArgs'];
   // Parsed once as a script in this realm, only to get the engine's message for a syntax error.
   const syntax = syntaxDetail(`(function (${parameters.join(', ')}) {\n${text('testCode')}\n})`, 'test-code.js');
   if (syntax !== null) return errorText('TEST_CODE_ERROR', `The test code does not compile: ${syntax}`);

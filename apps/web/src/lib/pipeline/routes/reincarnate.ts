@@ -115,6 +115,8 @@ export function handleReincarnate(request: Request, deps: PipelineDeps): Promise
 
       // 7. Generation: at most two provider calls. The static gate parses and type-checks in memory and runs nothing.
       const entryFunction = entryFunctionOf(seance.invariantsJson);
+      // The declared parameters decide which comparison helper the test must use (11-multi-argument-entry).
+      const entryParams = eligibility.candidates.find((candidate) => candidate.name === entryFunction)?.params ?? null;
       const output = await runGeneration({
         gateway: deps.createGateway(config),
         schema: ReincarnationOutputSchema,
@@ -123,6 +125,7 @@ export function handleReincarnate(request: Request, deps: PipelineDeps): Promise
             now: deps.now,
             typecheckTimeoutMs: deps.limits.typecheckTimeoutMs,
             maxDiagnostics: deps.limits.maxDiagnostics,
+            entryParamCount: entryParams === null ? null : entryParams.length,
           });
           return verdict.ok ? { ok: true } : { ok: false, failedRules: verdict.failedRules, diagnostics: verdict.diagnostics };
         },
@@ -135,6 +138,7 @@ export function handleReincarnate(request: Request, deps: PipelineDeps): Promise
               designMd: seance.designMd,
               invariantsJsonText,
               curses,
+              entryParams,
             },
             delimiter,
             retry,

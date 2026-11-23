@@ -60,10 +60,11 @@ var encodeInput = function (input) {
   }
 };
 
-var callSide = function (api, side, inputText) {
+// `operation` is "call" for one argument and "apply" for an argument list (11-multi-argument-entry).
+var callSide = function (api, side, inputText, operation) {
   if (progress.fatal !== null) fail(progress.fatal.code, progress.fatal.message);
   progress.side = side;
-  var outcome = api('call', inputText);
+  var outcome = api(operation === 'apply' ? 'apply' : 'call', inputText);
   progress.side = 'test';
   if (typeof outcome !== 'string') abort('SANDBOX_CRASH', 'The ' + side + ' adapter returned an invalid outcome.');
   if (stringSlice(outcome, 0, 8) === '{"k":"x"') {
@@ -100,11 +101,11 @@ var renderOutcome = function (outcome) {
 
 // Each side builds its own copy from the same text, so a mutation by one function reaches neither the
 // other function nor the generated value (Requirement 9, criterion 4).
-var assertEquivalent = function (input) {
+var compareSides = function (input, operation) {
   var inputText = encodeInput(input);
   progress.calls += 1;
-  var legacy = callSide(legacyApi, 'legacy', inputText);
-  var modern = callSide(modernApi, 'modern', inputText);
+  var legacy = callSide(legacyApi, 'legacy', inputText, operation);
+  var modern = callSide(modernApi, 'modern', inputText, operation);
   if (legacy === modern) return undefined;
 
   var difference = ObjectCreate(null);
@@ -118,6 +119,26 @@ var assertEquivalent = function (input) {
   var error = new $Error('Behavioral difference. Legacy: ' + difference.legacy + '. Modern: ' + difference.modern + '.');
   ReflectDefineProperty(error, 'name', dataDescriptor('EquivalenceError', false));
   throw error;
+};
+
+// The Declared_Arity of the legacy Entry_Function, read once from its Side_Adapter before the Test_Code runs.
+var legacyArity = (function () {
+  var value = legacyApi('arity');
+  return typeof value === 'number' ? value : 0;
+})();
+
+// One argument for a function that declares several would compare `undefined` parameters, so the run ends with
+// TEST_CODE_ERROR and no verdict (11-multi-argument-entry, Requirement 2).
+var assertEquivalent = function (input) {
+  if (legacyArity >= 2) {
+    abort('TEST_CODE_ERROR', 'The legacy function declares ' + legacyArity + ' parameters, but the test code called assertEquivalent(input) with one argument. Call assertEquivalentArgs(args) with one generated value per parameter.');
+  }
+  return compareSides(input, 'call');
+};
+
+var assertEquivalentArgs = function (args) {
+  if (!ArrayIsArray(args)) abort('TEST_CODE_ERROR', 'assertEquivalentArgs expects an array of arguments, one generated value per parameter.');
+  return compareSides(args, 'apply');
 };
 
 // For Test_Code that calls a function directly: the value comes back as a copy in this context, and a
@@ -221,7 +242,7 @@ var run = function () {
   var build = ownValue(globalThis, CONFIG.testName);
   var property;
   try {
-    property = build(fc, legacyFn, modernFn, assertEquivalent, CONFIG.numRuns);
+    property = build(fc, legacyFn, modernFn, assertEquivalent, CONFIG.numRuns, assertEquivalentArgs);
   } catch (error) {
     if (isFailure(error)) return errorResult(error.code, error.message);
     return testCodeError('The test code threw while building the property: ', error);

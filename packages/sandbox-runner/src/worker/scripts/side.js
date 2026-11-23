@@ -9,6 +9,9 @@
 // CONFIG: { side, apiName, allowDynamicCode, maxValueBytes }
 
 var entryFunction;
+// The Declared_Arity of the Entry_Function (11-multi-argument-entry): its own `length` data property when that is a
+// non-negative integer, otherwise 0. Read once, when the function is bound, without calling a getter.
+var declaredArity = 0;
 var stashedThrown;
 var forbiddenCapability = '';
 
@@ -26,14 +29,17 @@ var failureText = function (code, message) {
   return '{"k":"x","c":' + JSONStringify(code) + ',"m":' + JSONStringify(message) + '}';
 };
 
-var callEntry = function (inputText) {
+// With `spread`, the decoded input is the argument list and its elements become the positional parameters, with
+// `this` undefined (operation "apply", 11-multi-argument-entry).
+var callEntry = function (inputText, spread) {
   try {
     var input = decode(inputText);
+    if (spread && !ArrayIsArray(input)) fail('TEST_CODE_ERROR', 'assertEquivalentArgs expects an array of arguments, one generated value per parameter.');
     var returned;
     var thrown;
     var threw = false;
     try {
-      returned = entryFunction(input);
+      returned = spread ? ReflectApply(entryFunction, undefined, input) : entryFunction(input);
     } catch (error) {
       threw = true;
       thrown = error;
@@ -104,9 +110,21 @@ var renderValue = function (valueText) {
 };
 
 var api = function (operation, argument) {
-  if (operation === 'call') return callEntry(argument);
+  if (operation === 'call') return callEntry(argument, false);
+  if (operation === 'apply') return callEntry(argument, true);
+  if (operation === 'arity') return declaredArity;
   if (operation === 'bind') {
     entryFunction = typeof argument === 'function' ? argument : undefined;
+    declaredArity = 0;
+    if (entryFunction !== undefined) {
+      try {
+        var lengthDescriptor = ReflectGetOwnPropertyDescriptor(entryFunction, 'length');
+        var length = lengthDescriptor !== undefined && hasOwn(lengthDescriptor, 'value') ? lengthDescriptor.value : undefined;
+        if (typeof length === 'number' && length >= 0 && length <= 1000000 && length === (length | 0)) declaredArity = length;
+      } catch (ignored) {
+        declaredArity = 0;
+      }
+    }
     return entryFunction !== undefined;
   }
   if (operation === 'stash') {
