@@ -5,6 +5,11 @@
 #   database  the Foundation suite against a disposable Postgres 17 with the Flyway CLI (`db/tests`).
 #             It is the CI version of `pnpm test:db`, which starts the same database with Docker Compose.
 #
+# A first job, `changes`, decides whether the change is documentation only: every changed file ends in `.md` and none
+# is under apps/ or packages/ (tests there read their README files). Then both jobs are skipped. GitHub reports a job
+# skipped by its `if` as "Success", so the required checks still pass and the pull request can merge. Any doubt (a
+# manual run, a new branch, a diff that cannot be computed, a failed `changes` job) runs both jobs.
+#
 # The tests need no secret and no environment variable of the real project, so the workflow is safe for pull requests
 # from forks. Actions are pinned by commit SHA (the tag is in the comment), so a moved tag cannot change what runs.
 
@@ -30,8 +35,56 @@ env:
   DO_NOT_TRACK: '1'
 
 jobs:
+  changes:
+    name: Detect documentation-only changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.detect.outputs.code }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      # The commit ids come from the event payload through environment variables, never interpolated into the script.
+      - name: Compare the changed files
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          code=true
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base="$PR_BASE"; head="$PR_HEAD"; range="$base...$head"
+          elif [ "$EVENT_NAME" = "push" ]; then
+            base="$PUSH_BEFORE"; head="$PUSH_AFTER"; range="$base..$head"
+          else
+            base=""; head=""; range=""
+          fi
+          if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+            && git cat-file -e "$base^{commit}" 2>/dev/null && git cat-file -e "$head^{commit}" 2>/dev/null; then
+            if files="$(git diff --name-only "$range")" && [ -n "$files" ]; then
+              echo "Changed files:"; echo "$files"
+              if ! printf '%s\n' "$files" | grep -Ev '\.md$' | grep -q . \
+                && ! printf '%s\n' "$files" | grep -Eq '^(apps|packages)/'; then
+                code=false
+              fi
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Run lint, build, test, and the database tests: $code"
+
   check:
     name: Lint, build, and test
+    needs: changes
+    # Runs unless `changes` reported a documentation-only change. A failed `changes` job leaves the output empty, so
+    # this job still runs.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -67,6 +120,8 @@ jobs:
 
   database:
     name: Database tests
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
