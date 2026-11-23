@@ -44,6 +44,12 @@ const config: NextConfig = {
       // pnpm links pure-rand next to fast-check inside the store, not below it.
       '../../node_modules/.pnpm/fast-check@*/node_modules/pure-rand/package.json',
       '../../node_modules/.pnpm/fast-check@*/node_modules/pure-rand/lib/**/*.js',
+      // pure-rand is a CommonJS package whose ESM build is marked by lib/esm/package.json ({"type":"module"}), and
+      // fast-check marks its CommonJS build the same way in lib/cjs/package.json. Without these markers Node.js reads
+      // the files in the wrong module format, and the import fails with a SyntaxError ("does not provide an export
+      // named ..."). That was the SANDBOX_UNAVAILABLE of POST /api/verify on Vercel.
+      '../../node_modules/.pnpm/fast-check@*/node_modules/pure-rand/lib/**/package.json',
+      './node_modules/@lazarus/sandbox-runner/node_modules/fast-check/lib/**/package.json',
       './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/fast-check/package.json',
       './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/typescript/package.json',
       './node_modules/@lazarus/sandbox-runner/node_modules/@lazarus/pbt-verifier/node_modules/typescript/lib/typescript.js',
