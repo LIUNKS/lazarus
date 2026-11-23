@@ -68,7 +68,8 @@ export function validSeanceOutput(entry = 'calc') {
 export function validReincarnationOutput() {
   return {
     modernCode: 'export function calc(a: number, b: number): number {\n  return a + b;\n}\n',
-    pbtTestCode: 'const n = fc.integer();\nreturn fc.property(fc.tuple(n, n), (input) => {\n  assertEquivalent(input);\n});\n',
+    // `calc(a, b)` has two parameters, so the test spreads one generated value per parameter (11-multi-argument-entry).
+    pbtTestCode: 'const n = fc.integer();\nreturn fc.property(fc.tuple(n, n), (args) => {\n  assertEquivalentArgs(args);\n});\n',
   };
 }
 

@@ -70,7 +70,9 @@ if (result.status === 'ERROR') {
 }
 ```
 
-The test code follows the contract of `database-and-exorcism.md` without extension: it is the body of a function with the parameters `fc`, `legacyFn`, `modernFn`, `assertEquivalent`, and `numRuns`, and it ends with `return fc.property(...)`. It controls neither the run count nor the seed. An async property is supported only when it settles by microtasks.
+The test code follows the contract of `database-and-exorcism.md` without extension: it is the body of a function with the parameters `fc`, `legacyFn`, `modernFn`, `assertEquivalent`, `numRuns`, and `assertEquivalentArgs`, and it ends with `return fc.property(...)`. It controls neither the run count nor the seed. An async property is supported only when it settles by microtasks.
+
+`assertEquivalentArgs(args)` (spec `11-multi-argument-entry`) takes an array and calls each Entry_Function with its elements as positional arguments, through the `Reflect.apply` that the prelude captured before any untrusted code ran. When the legacy function declares two or more parameters, read once from its own `length` data property when it is bound, a call of `assertEquivalent` ends the run with `TEST_CODE_ERROR` and no verdict. A non-array `args` also gives `TEST_CODE_ERROR`. The legacy code can redefine its own `length`; that only changes the verdict of its own run, as the Threat model below already states for code under test.
 
 ### Cases mode
 

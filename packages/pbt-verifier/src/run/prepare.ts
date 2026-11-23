@@ -2,14 +2,19 @@ import type { NormalizedCommonOptions } from '../options.js';
 import { loadLegacy } from '../sandbox/legacy-loader.js';
 import type { LoadFailure } from '../sandbox/load-result.js';
 import { loadModern } from '../sandbox/modern-loader.js';
-import { createAssertEquivalent, makeSide, type Side } from './sides.js';
+import { createAssertEquivalent, createAssertEquivalentArgs, declaredArityOf, makeSide, type Side } from './sides.js';
 import type { RunState } from './run-state.js';
 
 /** Everything both modes need once the two sides are loaded. */
 export interface PreparedSides {
   legacy: Side;
   modern: Side;
+  /** One-argument comparison without the arity guard (the `inputArbitrary` mode). */
   assertEquivalent: (input: unknown) => undefined;
+  /** Spreading comparison (11-multi-argument-entry). */
+  assertEquivalentArgs: (args: unknown) => undefined;
+  /** The Declared_Arity of the legacy Entry_Function. */
+  declaredArity: number;
 }
 
 /**
@@ -39,5 +44,12 @@ export function prepareSides(
     state,
     options.callTimeoutMs,
   );
-  return { ok: true, legacy, modern, assertEquivalent: createAssertEquivalent(legacy, modern, state) };
+  return {
+    ok: true,
+    legacy,
+    modern,
+    assertEquivalent: createAssertEquivalent(legacy, modern, state),
+    assertEquivalentArgs: createAssertEquivalentArgs(legacy, modern, state),
+    declaredArity: declaredArityOf(legacyLoad.value.fn),
+  };
 }

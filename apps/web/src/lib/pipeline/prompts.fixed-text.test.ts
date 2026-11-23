@@ -92,6 +92,8 @@ describe('R10.6 R13.11 retry explanations, fixed text (Requirements 10 and 13)',
     'TEST_SYNTAX',
     'TEST_CONTRACT',
     'TEST_ASSERT_EQUIVALENT',
+    // Added by 11-multi-argument-entry, Requirement 3.5.
+    'TEST_ASSERT_EQUIVALENT_ARGS',
   ];
 
   it('R10.6 asks for one requirement per line, because a live check showed single-paragraph answers fail the line count (Requirement 10)', () => {

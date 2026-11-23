@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getVerificationGate } from './gate';
-import { createGate, createSandboxPort, type LiveRequest } from './sandbox';
+import { createGate, createSandboxPort, sandboxLoadFailureLine, type LiveRequest } from './sandbox';
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -44,8 +44,24 @@ describe('verification gate', () => {
   });
 
   it('R6.7 a Sandbox_Runner that cannot be loaded gives SANDBOX_UNAVAILABLE and no in-process run (Requirement 6)', async () => {
-    const port = createSandboxPort(Promise.reject(new Error('the package could not be loaded')));
-    expect(await port.run(broken())).toMatchObject({ status: 'ERROR', code: 'SANDBOX_UNAVAILABLE', executor: 'none' });
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const failure = Object.assign(new Error("Cannot find package 'x' imported from /var/task/secret/path.js"), { code: 'ERR_MODULE_NOT_FOUND' });
+      const port = createSandboxPort(Promise.reject(failure));
+      expect(await port.run(broken())).toMatchObject({ status: 'ERROR', code: 'SANDBOX_UNAVAILABLE', executor: 'none' });
+      // The cause is logged as the error name and code only, never the message or a path.
+      expect(logged).toHaveBeenCalledTimes(1);
+      const line = String(logged.mock.calls[0]?.[0]);
+      expect(JSON.parse(line)).toEqual({ event: 'sandbox_load_failed', route: 'verify', errorName: 'Error', errorCode: 'ERR_MODULE_NOT_FOUND' });
+      expect(line).not.toContain('/var/task');
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
+  it('R6.7 logs null fields for a load failure that is not a plain error object', () => {
+    expect(sandboxLoadFailureLine('text')).toEqual({ event: 'sandbox_load_failed', route: 'verify', errorName: null, errorCode: null });
+    expect(sandboxLoadFailureLine({ name: 'Error: with spaces', code: 42 })).toMatchObject({ errorName: null, errorCode: null });
   });
 
   it('R6.6 a second concurrent run of the same user is denied with USER_CONCURRENCY_LIMIT (Requirement 6)', async () => {

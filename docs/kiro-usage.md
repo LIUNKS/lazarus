@@ -1,12 +1,14 @@
 # How Lazarus uses Kiro
 
-This document lists every Kiro artifact in the repository, what it does, and how to check it. Counts are a snapshot from 2026-11-08; run `node scripts/hooks/spec-status.mjs` for the current spec progress.
+This document lists every Kiro artifact in the repository, what it does, and how to check it. Run `node scripts/hooks/spec-status.mjs` for the current spec progress; the `spec-status-on-start` hook prints the same lines at the start of every Kiro session.
 
 ## Overview
 
+Lazarus was built entirely in **Kiro IDE**. Kiro CLI, Kiro Web, and Kiro Crew were not used.
+
 | Kiro feature | Where | What it does for Lazarus |
 |---|---|---|
-| Specs | `.kiro/specs/01` to `08` | Each feature is written as requirements, design, and tasks before code. |
+| Specs | `.kiro/specs/01` to `11` | Each feature is written as requirements, design, and tasks before code. |
 | Steering | `.kiro/steering/` (8 files) | Project rules the agent loads always, by file pattern, or on request. |
 | Hooks | `.kiro/hooks/` (5 files) and `scripts/hooks/` | Guard rails and automatic checks around the agent's work. |
 | MCP | `.kiro/settings/mcp.json` | Exposes the Hex Scanner to the agent as two tools. |
@@ -14,16 +16,21 @@ This document lists every Kiro artifact in the repository, what it does, and how
 
 ## Specs
 
-| Spec | Subject | Status (snapshot) |
-|---|---|---|
-| `01-lazarus-foundation` | Monorepo, database schema, RLS, seed data | Complete |
-| `02-scanner-and-verifier` | `packages/mcp-curse-scanner`: AST scanner and MCP server | Complete (3 optional tasks left) |
-| `03-pbt-verifier` | Equivalence runner with `fast-check` | Not started |
-| `04-web-shell-auth` | Next.js shell, GitHub sign-in, Morgue, Crypt, import | Complete |
-| `05-llm-pipeline-api` | Séance and Reincarnation Route Handlers, cache, rate limit | Not started |
-| `06-resurrection-ui` | The stages in the web UI | Not started |
-| `07-sandboxed-execution` | Worker sandbox for running imported legacy code | Not started |
-| `08-live-verification-api` | Live verification endpoint | Not started |
+| Spec | Subject | Status | Merged |
+|---|---|---|---|
+| `01-lazarus-foundation` | Monorepo, database schema, RLS, seed data | Complete (30 tasks) | 2026-11-07 |
+| `02-scanner-and-verifier` | `packages/mcp-curse-scanner`: AST scanner and MCP server | Complete (90 tasks, 3 optional left) | 2026-11-08 |
+| `03-pbt-verifier` | Equivalence verifier with `fast-check` | Complete (35 tasks) | 2026-11-10 |
+| `04-web-shell-auth` | Next.js shell, GitHub sign-in, Morgue, Crypt, import | Complete (49 tasks) | 2026-11-07 |
+| `05-llm-pipeline-api` | Scan, Séance, and Reincarnation Route Handlers, cache, rate limit | Complete (44 tasks) | 2026-11-14 |
+| `06-resurrection-ui` | The Hex Scanner, Séance Chamber, and Laboratory panels | Complete (42 tasks) | 2026-11-15 |
+| `07-sandboxed-execution` | `packages/sandbox-runner`: Worker sandbox for live verification | Complete (47 tasks) | 2026-11-12 |
+| `08-live-verification-api` | `POST /api/verify`, quota, kill switch, persistence of verdicts | Complete (48 tasks) | 2026-11-14 |
+| `09-motion-ux` | GSAP motion for the four stages, with reduced-motion support | Complete (24 tasks) | 2026-11-22 |
+| `10-onboarding-invites` | What signing in adds, with the real limits | Complete (8 tasks) | 2026-11-22 |
+| `11-multi-argument-entry` | `assertEquivalentArgs` for entry functions with several parameters | Complete (5 tasks) | Not merged yet |
+
+Task counts include sub-tasks and come from the `spec-status-on-start` hook. The merge dates come from the Git history.
 
 How the specs are written (checkable in any `tasks.md`):
 - Every task cites the requirement criteria it implements (`_Requirements: ..._`).
@@ -41,8 +48,11 @@ The source of truth is the **Preconditions** section at the top of each `tasks.m
 | `05-llm-pipeline-api` | 01, 04 | Adds migration `V3` and depends on the scanner package. It does not use `pbt-verifier`. Its database tests need `TEST_DATABASE_URL`. |
 | `06-resurrection-ui` | 01, 04 | Built against a contract, with a fake `fetch`, so it can start before 05 and 08 exist. The "Verify live" control is not offered while live verification is off, which is the default, and the owner reads that live verification is not available. |
 | `08-live-verification-api` | 01, 03, 04, 05, 07 | Last of the chain. Adds a quota migration and the `POST /api/verify` route. Needs `TEST_DATABASE_URL` and the Flyway CLI for the database tests. |
+| `09-motion-ux` | 04, 06 | Adds no dependency, route, or server code. It supersedes one criterion of 06 (CSS-only pending indicator) and the two static checks that enforced it. |
+| `10-onboarding-invites` | 04, 05, 06, 08, 09 | Computes the list of member capabilities from the limit constants of 05 and 08, so the copy cannot drift from the real limits. |
+| `11-multi-argument-entry` | 03, 05, 07, 08 | Found while reviewing a real import: a generated test passed one argument to `calculateShipping(weightKg, zone, isExpress)`. The shared test fixture of 05 had the same bug (`calc(a, b)` tested with one argument). |
 
-Order used in this project: **03, 07, 05, 08**, with **06** in any slot after 04. A shorter path to a working demo is 05 and 06, because the sample corpses already carry stored results; the chain 03, 07, 08 adds live verification, which is switched off by default.
+Order used in this project: **01 and 04, 02, 03, 07, 05, 08, 06, 09, 10**. Specs 09 and 10 came last: they build on the panels of 06 and the limits of 05 and 08. Live verification of code that a member imported ships switched off (`USER_EXECUTION_ENABLED` is `false`); members can still run the sample corpses live.
 
 Rules that apply to every spec in this list are in `.kiro/steering/spec-execution.md`, and the `spec-status-on-start` hook prints the current progress at the start of each session.
 
@@ -75,7 +85,7 @@ The commands live in `scripts/hooks/*.mjs` so they can be read and run by hand.
 
 - Registered in `.kiro/settings/mcp.json`; the server is `packages/mcp-curse-scanner/dist/index.js`.
 - Tools: `scan_ast_curses` and `extract_function_signatures`, both in `autoApprove` because they are read-only and deterministic.
-- The same analyzer is also a library (`scanCurses`, `extractFunctionSignatures`). Spec `05-llm-pipeline-api` plans to use it from the web app, so the agent and the product would report the same findings. That dependency is not in `apps/web` yet.
+- The same analyzer is also a library (`scanCurses`, `extractFunctionSignatures`). The web app imports it in `apps/web/src/lib/pipeline/routes/scan.ts` (`POST /api/scan`) and in `apps/web/src/lib/pipeline/eligibility.ts` (the entry-function check before a model call). The agent and the product therefore run the same code and report the same findings for the same source.
 
 ## Skills
 
@@ -87,7 +97,7 @@ The commands live in `scripts/hooks/*.mjs` so they can be read and run by hand.
 
 ## How each piece was checked
 
-These checks were run on 2026-11-08. They do not replace trying the hooks inside a live Kiro session.
+These checks were run on 2026-11-08, when specs 01, 02, and 04 were complete. They do not replace trying the hooks inside a live Kiro session. Since 2026-11-15 the GitHub Actions workflow (`.github/workflows/ci.yml`) runs `pnpm lint`, `pnpm build`, `pnpm test`, and the database suite on every pull request.
 
 | Artifact | Check | Result |
 |---|---|---|
