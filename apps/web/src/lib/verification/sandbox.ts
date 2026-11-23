@@ -35,14 +35,40 @@ const UNAVAILABLE: SandboxResult = {
   executionTimeMs: 1,
 };
 
+const SAFE_TOKEN = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+
+function safeToken(value: unknown): string | null {
+  return typeof value === 'string' && SAFE_TOKEN.test(value) ? value : null;
+}
+
+/**
+ * One log line for a Sandbox_Runner that could not be loaded, with the error name and the Node.js error code only
+ * (for example `ERR_MODULE_NOT_FOUND`). Never the message or the stack, which can hold file paths.
+ */
+export function sandboxLoadFailureLine(error: unknown): { event: 'sandbox_load_failed'; route: 'verify'; errorName: string | null; errorCode: string | null } {
+  let name: unknown;
+  let code: unknown;
+  try {
+    if (typeof error === 'object' && error !== null) ({ name, code } = error as Record<string, unknown>);
+  } catch {
+    // An unreadable error is logged with null fields.
+  }
+  return { event: 'sandbox_load_failed', route: 'verify', errorName: safeToken(name), errorCode: safeToken(code) };
+}
+
 export function createSandboxPort(gate: Promise<LiveExecutionGate>): SandboxPort {
   return {
     async run(request) {
       let loaded: [Runner, LiveExecutionGate];
       try {
         loaded = await Promise.all([loadRunner(), gate]);
-      } catch {
+      } catch (error) {
         runner = null;
+        try {
+          console.error(JSON.stringify(sandboxLoadFailureLine(error)));
+        } catch {
+          // A failing logger must not change the result.
+        }
         return UNAVAILABLE;
       }
       const [{ verifyLive }, live] = loaded;

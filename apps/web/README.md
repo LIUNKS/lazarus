@@ -1,11 +1,13 @@
 # @lazarus/web
 
 The Lazarus web application: Next.js 16 (App Router), React 19, Tailwind CSS 4, shadcn/ui, GSAP, and Supabase.
-It delivers the application shell and the first stage of the product, The Morgue.
+It delivers the four stages of the product: The Morgue, the Hex Scanner, the Séance Chamber, and the Laboratory.
 
 - **Judge mode:** anyone can open the three sample corpses without signing in. Access is read-only, nothing is written to the database, and no language model is called.
-- **GitHub sign-in:** signed-in members can import legacy JavaScript and keep a private history in The Crypt.
-- **Not included yet:** the Hex Scanner, Séance Chamber, and Laboratory screens, and any analysis or model call.
+- **GitHub sign-in:** signed-in members can import legacy JavaScript, keep a private history in The Crypt, and run the scan, the séance, and the reincarnation on their own corpses (see [Pipeline API](#pipeline-api)).
+- **Live verification:** members can run a sample corpse live. Live verification of imported code ships switched off (see [Verification API](#verification-api)).
+
+The first sections below (up to Known limits) were written for the shell of `04-web-shell-auth`. The sections from [Pipeline API](#pipeline-api) on add to them, and where they differ, the later section applies.
 
 ## Commands
 
@@ -70,7 +72,7 @@ The app builds the `redirectTo` URL from the request headers, so no code change 
 - Every query runs with the request's own Supabase client under Row Level Security. Visitors run as `anon`, members as `authenticated`.
 - State changes (import, delete, sign-out) are Server Actions. Redirect targets must be same-origin paths.
 - Database and Supabase errors are logged on the server and replaced by generic messages in the browser.
-- Imported code is stored as text only. It is not parsed, run, or sent to a model.
+- Import stores the code as text. It is parsed only by the scanner, sent to a model only when its owner starts a séance or a reincarnation, and run only inside the sandbox when live verification is switched on (it ships off).
 
 ## Tests
 

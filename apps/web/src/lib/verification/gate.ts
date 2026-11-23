@@ -13,11 +13,19 @@ import { createGate, type LiveExecutionGate } from './sandbox';
 let gate: Promise<LiveExecutionGate> | null = null;
 
 export function getVerificationGate(): Promise<LiveExecutionGate> {
-  gate ??= createGate({
+  if (gate !== null) return gate;
+  const created = createGate({
     userExecutionEnabled: effectiveExecution().enabled,
     allowAnonymousSampleRuns: false,
     perUserConcurrency: VERIFICATION_LIMITS.perUserConcurrency,
     globalConcurrency: VERIFICATION_LIMITS.globalConcurrency,
   });
+  // A Gate that failed to load is not kept: the next request tries again instead of answering SANDBOX_UNAVAILABLE
+  // until the process ends. The handler also marks the rejection as handled, because a request that never runs the
+  // sandbox (a visitor, a stored verdict) never awaits this promise. The caller still sees the rejection.
+  created.catch(() => {
+    if (gate === created) gate = null;
+  });
+  gate = created;
   return gate;
 }

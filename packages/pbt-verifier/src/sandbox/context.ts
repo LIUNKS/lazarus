@@ -19,8 +19,11 @@ export interface Sandbox {
    * from the script propagates to the caller; so does the timeout error of `node:vm`.
    */
   evaluate(source: string, filename: string, timeoutMs: number): unknown;
-  /** Calls `fn(input)` inside the sandbox. `input` must already belong to the sandbox realm. */
-  invoke(fn: SandboxFunction, input: unknown, timeoutMs: number): CallResult;
+  /**
+   * Calls `fn(input)` inside the sandbox. `input` must already belong to the sandbox realm. With `spread`, `input` is
+   * an array of that realm and its elements become the positional arguments, with `this` undefined.
+   */
+  invoke(fn: SandboxFunction, input: unknown, timeoutMs: number, spread?: boolean): CallResult;
   /** Deep-copies a host or foreign-realm value into the sandbox realm. */
   cloneInto(value: unknown): unknown;
   /**
@@ -34,6 +37,7 @@ export interface Sandbox {
 const TIMEOUT_CODE = 'ERR_SCRIPT_EXECUTION_TIMEOUT';
 const FN_SLOT = '__lazarus_fn__';
 const INPUT_SLOT = '__lazarus_in__';
+const APPLY_SLOT = '__lazarus_apply__';
 const MAX_DESCRIPTION_LENGTH = 500;
 
 /**
@@ -42,11 +46,12 @@ const MAX_DESCRIPTION_LENGTH = 500;
  * from this script is a real timeout. A user script that throws an object imitating the timeout error
  * is caught here and reported as `threw`.
  */
-const INVOKE_SCRIPT = new Script(
-  `(function () {
-  var fn = ${FN_SLOT}, input = ${INPUT_SLOT};
+function invokeScript(call: string, filename: string): Script {
+  return new Script(
+    `(function () {
+  var fn = ${FN_SLOT}, input = ${INPUT_SLOT}, apply = ${APPLY_SLOT};
   try {
-    return { k: 0, v: fn(input) };
+    return { k: 0, v: ${call} };
   } catch (e) {
     var name = 'non-error';
     try {
@@ -58,8 +63,14 @@ const INVOKE_SCRIPT = new Script(
     return { k: 1, v: name };
   }
 })()`,
-  { filename: 'lazarus-invoke.js' },
-);
+    { filename },
+  );
+}
+
+const INVOKE_SCRIPT = invokeScript('fn(input)', 'lazarus-invoke.js');
+// `apply` is the context's own Reflect.apply, read when the sandbox was created and before any user code ran, so a
+// later change to Reflect or to Function.prototype.apply by that code does not change how the arguments are passed.
+const APPLY_SCRIPT = invokeScript('apply(fn, undefined, input)', 'lazarus-apply.js');
 
 function isTimeoutError(error: unknown): boolean {
   return (
@@ -77,6 +88,7 @@ export function createSandbox(extraGlobals: Record<string, unknown> = {}): Sandb
   Object.assign(base, extraGlobals);
   const context = createContext(base);
   runInContext('delete globalThis.console; delete globalThis.WebAssembly;', context);
+  const contextApply = runInContext('Reflect.apply', context) as unknown;
   const cloneInto = createCloner(context);
 
   return {
@@ -85,11 +97,13 @@ export function createSandbox(extraGlobals: Record<string, unknown> = {}): Sandb
       const script = new Script(source, { filename });
       return script.runInContext(context, { timeout: timeoutMs }) as unknown;
     },
-    invoke(fn, input, timeoutMs) {
+    invoke(fn, input, timeoutMs, spread = false) {
       base[FN_SLOT] = fn;
       base[INPUT_SLOT] = input;
+      base[APPLY_SLOT] = contextApply;
       try {
-        const result = INVOKE_SCRIPT.runInContext(context, { timeout: timeoutMs }) as {
+        const script = spread ? APPLY_SCRIPT : INVOKE_SCRIPT;
+        const result = script.runInContext(context, { timeout: timeoutMs }) as {
           k: number;
           v: unknown;
         };
@@ -102,6 +116,7 @@ export function createSandbox(extraGlobals: Record<string, unknown> = {}): Sandb
       } finally {
         delete base[FN_SLOT];
         delete base[INPUT_SLOT];
+        delete base[APPLY_SLOT];
       }
     },
     cloneInto,

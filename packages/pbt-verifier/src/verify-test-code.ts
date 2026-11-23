@@ -2,11 +2,15 @@ import * as fc from 'fast-check';
 import type { NormalizedTestCodeOptions } from './options.js';
 import { executeProperty, type RunResult } from './run/execute.js';
 import { prepareSides } from './run/prepare.js';
+import { createAssertEquivalent } from './run/sides.js';
 import type { RunState } from './run/run-state.js';
 import { createSandbox, describeThrown } from './sandbox/context.js';
 
-/** The parameters of the Test_Code function, in the order the contract fixes (Requirement 8, criterion 2). */
-const TEST_CODE_PARAMETERS = ['fc', 'legacyFn', 'modernFn', 'assertEquivalent', 'numRuns'];
+/**
+ * The parameters of the Test_Code function, in the order the contract fixes (Requirement 8, criterion 2). The sixth
+ * one comes from 11-multi-argument-entry; a body that ignores it behaves as before.
+ */
+const TEST_CODE_PARAMETERS = ['fc', 'legacyFn', 'modernFn', 'assertEquivalent', 'numRuns', 'assertEquivalentArgs'];
 
 function testCodeError(message: string): RunResult {
   return { status: 'ERROR', code: 'TEST_CODE_ERROR', message };
@@ -49,8 +53,10 @@ export async function runTestCode(
       fc,
       (input: unknown) => sides.legacy.call(input),
       (input: unknown) => sides.modern.call(input),
-      sides.assertEquivalent,
+      // Guarded by the Declared_Arity of the legacy function (11-multi-argument-entry, Requirement 2).
+      createAssertEquivalent(sides.legacy, sides.modern, state, sides.declaredArity),
       options.numRuns,
+      sides.assertEquivalentArgs,
     );
   } catch (error) {
     return testCodeError(`The test code threw while building the property: ${describeThrown(error)}`);

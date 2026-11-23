@@ -59,6 +59,18 @@ export class EquivalenceError extends Error {
 }
 
 /**
+ * Thrown by `assertEquivalent` for a legacy function that declares two or more parameters, and by
+ * `assertEquivalentArgs` for an argument list that is not an array (11-multi-argument-entry). The run ends with
+ * `TEST_CODE_ERROR` and this message, never with a verdict.
+ */
+export class CallStyleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CallStyleError';
+  }
+}
+
+/**
  * Thrown to Test_Code that calls `legacyFn` or `modernFn` directly when the function throws. It carries
  * the thrown `name` and never the original value or its stack.
  */

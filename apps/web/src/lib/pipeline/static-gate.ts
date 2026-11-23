@@ -15,6 +15,7 @@ export type GateRule =
   | 'TEST_SYNTAX'
   | 'TEST_CONTRACT'
   | 'TEST_ASSERT_EQUIVALENT'
+  | 'TEST_ASSERT_EQUIVALENT_ARGS'
   | 'FORBIDDEN_PHRASE';
 
 /** Failed rules are always reported in this order. */
@@ -26,6 +27,7 @@ const RULE_ORDER: readonly GateRule[] = [
   'TEST_SYNTAX',
   'TEST_CONTRACT',
   'TEST_ASSERT_EQUIVALENT',
+  'TEST_ASSERT_EQUIVALENT_ARGS',
   'FORBIDDEN_PHRASE',
 ];
 
@@ -42,6 +44,11 @@ export interface GateOptions {
   now?: () => number;
   typecheckTimeoutMs?: number;
   maxDiagnostics?: number;
+  /**
+   * The number of Entry_Params of the legacy entry function (11-multi-argument-entry). With 2 or more, the test must
+   * call assertEquivalentArgs and must not call assertEquivalent. Unknown or 0 to 1: the rules of 05 apply unchanged.
+   */
+  entryParamCount?: number | null;
 }
 
 const MODERN_MIN_LENGTH = 1;
@@ -424,12 +431,13 @@ function typecheck(code: string, now: () => number, timeoutMs: number): Typechec
 // ---------------------------------------------------------------------------------------------
 
 const TEST_FILE = 'pbt-body.js';
-const WRAPPER_HEAD = 'function __body(fc, legacyFn, modernFn, assertEquivalent, numRuns) ';
+const WRAPPER_HEAD = 'function __body(fc, legacyFn, modernFn, assertEquivalent, numRuns, assertEquivalentArgs) ';
 
 interface TestAnalysis {
   syntaxFailed: boolean;
   contractFailed: boolean;
   assertEquivalentMissing: boolean;
+  referencesAssertEquivalentArgs: boolean;
 }
 
 function propertyNameText(name: ts.PropertyName): string | null {
@@ -480,6 +488,7 @@ function analyzeTestCode(code: string): TestAnalysis {
   let callsAssertOrCheck = false;
   let setsNumRuns = false;
   let referencesAssertEquivalent = false;
+  let referencesAssertEquivalentArgs = false;
   for (const statement of statements) {
     walk(statement, (node) => {
       if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node) || ts.isExportAssignment(node) || ts.isImportEqualsDeclaration(node)) {
@@ -500,6 +509,7 @@ function analyzeTestCode(code: string): TestAnalysis {
       }
       if (ts.isShorthandPropertyAssignment(node) && node.name.text === 'numRuns') setsNumRuns = true;
       if (ts.isIdentifier(node) && node.text === 'assertEquivalent' && isReferencePosition(node)) referencesAssertEquivalent = true;
+      if (ts.isIdentifier(node) && node.text === 'assertEquivalentArgs' && isReferencePosition(node)) referencesAssertEquivalentArgs = true;
     });
   }
 
@@ -511,6 +521,7 @@ function analyzeTestCode(code: string): TestAnalysis {
     syntaxFailed: !lengthOk || hasSyntaxErrors || !insideWrapper || hasModuleSyntax,
     contractFailed: usesModules || !endsWithProperty || callsAssertOrCheck || setsNumRuns,
     assertEquivalentMissing: !referencesAssertEquivalent,
+    referencesAssertEquivalentArgs,
   };
 }
 
@@ -526,6 +537,7 @@ export function runStaticGate(
   const now = options.now ?? Date.now;
   const timeoutMs = options.typecheckTimeoutMs ?? LIMITS.typecheckTimeoutMs;
   const maxDiagnostics = options.maxDiagnostics ?? LIMITS.maxDiagnostics;
+  const multiParameter = typeof options.entryParamCount === 'number' && options.entryParamCount >= 2;
   const failed = new Set<GateRule>();
   const diagnostics: Diagnostic[] = [];
 
@@ -553,9 +565,15 @@ export function runStaticGate(
     const analysis = analyzeTestCode(output.pbtTestCode);
     if (analysis.syntaxFailed) failed.add('TEST_SYNTAX');
     if (analysis.contractFailed) failed.add('TEST_CONTRACT');
-    if (analysis.assertEquivalentMissing) failed.add('TEST_ASSERT_EQUIVALENT');
+    if (multiParameter) {
+      // 11-multi-argument-entry, Requirement 3.3: one generated value per parameter, through the spreading helper only.
+      if (!analysis.referencesAssertEquivalentArgs || !analysis.assertEquivalentMissing) failed.add('TEST_ASSERT_EQUIVALENT_ARGS');
+    } else if (analysis.assertEquivalentMissing) {
+      failed.add('TEST_ASSERT_EQUIVALENT');
+    }
   } catch {
-    for (const rule of ['TEST_SYNTAX', 'TEST_CONTRACT', 'TEST_ASSERT_EQUIVALENT'] as const) failed.add(rule);
+    for (const rule of ['TEST_SYNTAX', 'TEST_CONTRACT'] as const) failed.add(rule);
+    failed.add(multiParameter ? 'TEST_ASSERT_EQUIVALENT_ARGS' : 'TEST_ASSERT_EQUIVALENT');
   }
 
   // Forbidden phrases, in raw text: comments and string literals count here.

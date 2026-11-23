@@ -62,7 +62,15 @@ const result = await verifyTestCode({
 });
 ```
 
-The test code follows the Test_Code_Contract. The contract is defined in `.kiro/steering/database-and-exorcism.md`, section 3, and this package does not restate or extend it. In short, the text is the body of a function with the parameters `fc`, `legacyFn`, `modernFn`, `assertEquivalent`, and `numRuns`, and it ends with `return fc.property(...)`. The Verifier, not the test code, calls `fc.check` with its own `numRuns` and `seed`. The fixtures under `test/fixtures/` show the format by example.
+The test code follows the Test_Code_Contract. The contract is defined in `.kiro/steering/database-and-exorcism.md`, section 3, and this package does not restate or extend it. In short, the text is the body of a function with the parameters `fc`, `legacyFn`, `modernFn`, `assertEquivalent`, `numRuns`, and `assertEquivalentArgs`, and it ends with `return fc.property(...)`. The Verifier, not the test code, calls `fc.check` with its own `numRuns` and `seed`. The fixtures under `test/fixtures/` show the format by example.
+
+**Entry functions with several parameters** (spec `11-multi-argument-entry`). `assertEquivalent(input)` calls each function with one argument. `assertEquivalentArgs(args)` takes an array and calls each function with its elements as positional arguments, each side with its own copy, with `this` undefined. When the legacy function declares two or more parameters (its own `length`), a call of `assertEquivalent` ends the run with `TEST_CODE_ERROR` and no verdict, because one argument would leave the other parameters `undefined`. An `args` value that is not an array also gives `TEST_CODE_ERROR`. `verifyEquivalence` is not affected.
+
+```js
+return fc.property(fc.tuple(fc.integer(), fc.string()), (args) => {
+  assertEquivalentArgs(args);
+});
+```
 
 ### Source format
 
