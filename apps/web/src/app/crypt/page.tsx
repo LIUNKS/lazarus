@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { FenceDivider } from '@/components/icons';
 import { CorpseGrid } from '@/components/corpse-grid';
 import { DeleteCorpseButton } from '@/components/delete-corpse-button';
 import { EmptyState } from '@/components/empty-state';
@@ -32,13 +33,14 @@ export default async function CryptPage({ searchParams }: { searchParams: Search
   const pages = pageCount(result.total, OWNED_LIST_LIMIT);
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">The Crypt</h1>
+    <div className="space-y-8">
+      <header className="space-y-3">
+        <h1 className="text-4xl font-bold tracking-wide sm:text-5xl">The Crypt</h1>
         <p className="text-muted-foreground">
           Your private history. {result.total} of {IMPORT_LIMITS.maxCorpses} corpses used.
         </p>
         {notice ? <Notice>{notice}</Notice> : null}
+        <FenceDivider className="text-border" />
       </header>
 
       {result.total === 0 ? (
@@ -60,7 +62,7 @@ export default async function CryptPage({ searchParams }: { searchParams: Search
       {pages > 1 ? (
         <nav aria-label="Pagination" className="flex items-center justify-between text-sm">
           {page > 1 ? (
-            <Link href={`/crypt?page=${page - 1}`} className="underline underline-offset-4">
+            <Link href={`/crypt?page=${page - 1}`} className="underline underline-offset-4 hover:text-primary">
               Newer
             </Link>
           ) : (
@@ -70,7 +72,7 @@ export default async function CryptPage({ searchParams }: { searchParams: Search
             Page {page} of {pages}
           </span>
           {page < pages ? (
-            <Link href={`/crypt?page=${page + 1}`} className="underline underline-offset-4">
+            <Link href={`/crypt?page=${page + 1}`} className="underline underline-offset-4 hover:text-primary">
               Older
             </Link>
           ) : (
