@@ -29,7 +29,7 @@ describe('R6 Reveal trigger', () => {
 describe('R7 Progress_Bar markup', () => {
   it('R7.1 R7.4 is fixed decoration at the top that takes no pointer events and is invisible until animated', () => {
     expect(renderToStaticMarkup(<ScrollProgress />)).toBe(
-      '<div aria-hidden="true" class="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-foreground/70 opacity-0"></div>',
+      '<div aria-hidden="true" class="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-primary opacity-0 shadow-[0_0_8px] shadow-primary"></div>',
     );
   });
 });
