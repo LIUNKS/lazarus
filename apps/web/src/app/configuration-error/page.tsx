@@ -8,7 +8,7 @@ export default function ConfigurationErrorPage() {
   const result = readPublicConfig();
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-semibold">Configuration error</h1>
+      <h1 className="font-serif text-2xl font-bold">Configuration error</h1>
       {result.ok ? (
         <p className="mt-4">No configuration problem was detected. Reload the page.</p>
       ) : (
@@ -17,12 +17,13 @@ export default function ConfigurationErrorPage() {
           <ul className="mt-4 list-disc pl-6">
             {result.problems.map((problem) => (
               <li key={problem.variable}>
-                <code>{problem.variable}</code> is {problem.reason}
+                <code className="font-mono text-primary">{problem.variable}</code> is {problem.reason}
               </li>
             ))}
           </ul>
           <p className="mt-4">
-            Copy <code>.env.example</code> to <code>.env</code> at the repository root and set these variables.
+            Copy <code className="font-mono text-primary">.env.example</code> to{' '}
+            <code className="font-mono text-primary">.env</code> at the repository root and set these variables.
           </p>
         </>
       )}
