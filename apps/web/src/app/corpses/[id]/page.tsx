@@ -6,6 +6,7 @@ import { ScrollProgress } from '@/animations/scroll-progress';
 import { CodeView } from '@/components/code-view';
 import { DeleteCorpseButton } from '@/components/delete-corpse-button';
 import { ErrorState } from '@/components/error-state';
+import { FenceDivider } from '@/components/icons';
 import { LanguageBadge } from '@/components/language-badge';
 import { Notice } from '@/components/notice';
 import { SampleInvite } from '@/components/onboarding/sample-invite';
@@ -58,11 +59,15 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
   // The curses are part of the corpse query, so the lines of the source are marked without waiting for the stage data.
   const scannerView = buildScannerView(corpse.curses, countSourceLines(corpse.originalCode));
 
+  // The first curse of a line (entries are sorted by line) gives the glyph in the margin.
+  const severityByLine = new Map<number, string>();
+  for (const entry of scannerView.entries) if (!severityByLine.has(entry.lineNumber)) severityByLine.set(entry.lineNumber, entry.severity);
+
   return (
-    <article className="space-y-8">
+    <article className="space-y-12">
       <header className="space-y-3">
         {notice ? <Notice>{notice}</Notice> : null}
-        <h1 className="text-3xl font-semibold break-words">{corpse.title}</h1>
+        <h1 className="font-serif text-3xl leading-tight font-bold tracking-wide break-words sm:text-[44px]">{corpse.title}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {corpse.isSample ? <Badge variant="secondary">Sample</Badge> : null}
           <LanguageBadge language={corpse.sourceLanguage} />
@@ -83,13 +88,18 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
       </header>
 
       <section className="space-y-3" aria-labelledby="source-heading">
-        <h2 id="source-heading" className="text-xl font-semibold">
+        <h2 id="source-heading" className="font-serif text-2xl font-semibold tracking-wider">
           Legacy source
         </h2>
         <ScanBeam markedLines={[...scannerView.markedLines]} lineCount={countSourceLines(corpse.originalCode)}>
-          <CodeView code={corpse.originalCode} markedLines={scannerView.markedLines} />
+          <CodeView
+            code={corpse.originalCode}
+            markedLines={scannerView.markedLines}
+            severityByLine={severityByLine}
+          />
         </ScanBeam>
       </section>
+      <FenceDivider aria-hidden className="text-border" />
       <AnchorGlide />
       <ScrollProgress />
 
