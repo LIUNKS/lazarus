@@ -1,4 +1,5 @@
 import { StageActions } from '@/components/stages/stage-actions';
+import { SeverityGlyph } from '@/components/stages/severity-glyph';
 import { Badge } from '@/components/ui/badge';
 import type { StageAccess, StageControls } from '@/lib/stages/controls';
 import { ROUTE_COPY, SAMPLE_MIGRATION_HINT, scanLabel, stageHeadingId } from '@/lib/stages/copy';
@@ -50,7 +51,8 @@ export function HexScannerPanel({
             <ul aria-label="Curses by severity" className="flex flex-wrap gap-2">
               {view.bySeverity.map((row) => (
                 <li key={row.severity}>
-                  <Badge variant="outline">
+                  <Badge variant="outline" className={row.severity === 'HEX' ? undefined : 'border-curse text-curse-text'}>
+                    <SeverityGlyph severity={row.severity} />
                     {severityLabel(row.severity)}: {row.count}
                   </Badge>
                 </li>
@@ -66,12 +68,15 @@ export function HexScannerPanel({
               ))}
             </ul>
           </div>
-          <ol aria-label="Curses by line" data-reveal className="divide-y divide-border rounded-lg border border-border">
+          <ol aria-label="Curses by line" data-reveal className="panel divide-y divide-border">
             {view.entries.map((entry) => (
-              <li key={entry.id} className="space-y-1 px-4 py-3 text-sm">
+              <li key={entry.id} className="space-y-1.5 px-5 py-4 text-sm leading-relaxed">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">{entry.label}</span>
-                  <Badge className="bg-curse text-curse-foreground">{severityLabel(entry.severity)}</Badge>
+                  <Badge className="bg-curse text-curse-foreground">
+                    <SeverityGlyph severity={entry.severity} />
+                    {severityLabel(entry.severity)}
+                  </Badge>
                   {entry.anchor === null ? (
                     <span className="text-muted-foreground">Line {entry.lineNumber}</span>
                   ) : (

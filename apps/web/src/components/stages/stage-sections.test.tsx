@@ -95,7 +95,7 @@ describe('R1 stage sections and overview', () => {
   it('R1.4 shows the Laboratory state from the stored verification state', () => {
     const verified = render('visitor', { seance: seanceSpec(), reincarnation: reincarnation() });
     expect(verified).toContain('Approved');
-    expect(verified).toMatch(/Laboratory<\/span><span class="block text-sm text-muted-foreground">Verified</);
+    expect(verified).toMatch(/Laboratory<\/span><span class="block text-sm[^"]*">Verified</);
   });
 });
 

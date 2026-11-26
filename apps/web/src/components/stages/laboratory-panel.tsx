@@ -91,10 +91,15 @@ export function LaboratoryPanel({
             <time dateTime={reincarnation.createdAt}>{formatDateUtc(reincarnation.createdAt)}</time>.
           </p>
           <div data-reveal>
-            <CodeView code={reincarnation.modernCode} label="Resurrected TypeScript" idPrefix="modern" />
+            <CodeView
+              code={reincarnation.modernCode}
+              label="Resurrected TypeScript"
+              idPrefix="modern"
+              tone={view.tone === 'verified' ? 'verified' : 'default'}
+            />
           </div>
-          <details data-reveal className="rounded-lg border border-border">
-            <summary className="cursor-pointer px-4 py-2 text-sm font-medium">Property-based test</summary>
+          <details data-reveal className="panel">
+            <summary className="cursor-pointer rounded-md px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">Property-based test</summary>
             <div className="p-3">
               <CodeView code={reincarnation.pbtTestCode} label="Property-based test" idPrefix="pbt" />
             </div>
