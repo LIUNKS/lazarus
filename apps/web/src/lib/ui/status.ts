@@ -23,7 +23,7 @@ export function statusPresentation(status: CorpseStatus): StatusPresentation {
 
 export const TONE_CLASSES: Record<StatusTone, string> = {
   curse: 'bg-curse text-curse-foreground',
-  neutral: 'bg-secondary text-secondary-foreground',
+  neutral: 'border-spectral bg-secondary text-secondary-foreground',
   verified: 'bg-verified text-verified-foreground',
 };
 
