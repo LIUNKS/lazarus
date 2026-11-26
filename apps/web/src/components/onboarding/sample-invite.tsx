@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { GitHubSignInButton } from '@/components/onboarding/github-sign-in-button';
+import { Button } from '@/components/ui/button';
 import { TRUST_LINE } from '@/lib/onboarding/copy';
 
 /**
@@ -8,16 +9,16 @@ import { TRUST_LINE } from '@/lib/onboarding/copy';
  */
 export function SampleInvite({ signedIn }: { signedIn: boolean }) {
   return (
-    <aside aria-labelledby="sample-invite-heading" className="space-y-3 rounded-xl border border-border bg-card p-6">
-      <h2 id="sample-invite-heading" className="text-lg font-semibold">
+    <aside aria-labelledby="sample-invite-heading" className="panel space-y-3 p-6">
+      <h2 id="sample-invite-heading" className="text-xl font-semibold">
         Like what you saw?
       </h2>
       {signedIn ? (
         <>
           <p className="text-sm text-muted-foreground">Run the same four stages on your own legacy JavaScript.</p>
-          <Link href="/import" className="inline-block text-sm underline underline-offset-4">
-            Import legacy code
-          </Link>
+          <Button asChild>
+            <Link href="/import">Import legacy code</Link>
+          </Button>
         </>
       ) : (
         <>
