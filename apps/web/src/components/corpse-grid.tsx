@@ -14,9 +14,9 @@ export function CorpseGrid({
 }) {
   return (
     <Reveal>
-      <ul aria-label={label} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {corpses.map((corpse) => (
-          <CorpseCard key={corpse.id} corpse={corpse} actions={renderActions?.(corpse)} />
+      <ul aria-label={label} className="grid gap-x-5 gap-y-7 sm:grid-cols-2 lg:grid-cols-3">
+        {corpses.map((corpse, index) => (
+          <CorpseCard key={corpse.id} corpse={corpse} tag={index + 1} actions={renderActions?.(corpse)} />
         ))}
       </ul>
     </Reveal>
