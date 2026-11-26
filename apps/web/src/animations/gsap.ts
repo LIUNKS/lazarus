@@ -5,12 +5,13 @@
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { DrawSVGPlugin } from 'gsap/DrawSVGPlugin';
+import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin';
 import { ScrambleTextPlugin } from 'gsap/ScrambleTextPlugin';
 import { ScrollToPlugin } from 'gsap/ScrollToPlugin';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { MOTION_QUERY } from './motion-math';
 
-gsap.registerPlugin(useGSAP, ScrollTrigger, ScrollToPlugin, DrawSVGPlugin, ScrambleTextPlugin);
+gsap.registerPlugin(useGSAP, ScrollTrigger, ScrollToPlugin, DrawSVGPlugin, MorphSVGPlugin, ScrambleTextPlugin);
 
 /** Wraps a function so that the animations it starts later belong to the motion context and are reverted with it. */
 export type MotionSafe = <T extends (...args: never[]) => void>(func: T) => T;
@@ -32,4 +33,4 @@ export function withMotion(setup: (safe: MotionSafe) => void | (() => void)): ()
   return () => media.revert();
 }
 
-export { gsap, useGSAP, ScrollTrigger };
+export { gsap, useGSAP, ScrollTrigger, MorphSVGPlugin };
