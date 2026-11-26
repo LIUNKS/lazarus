@@ -7,8 +7,9 @@ export function AuthControl({ viewer }: { viewer: Viewer | null }) {
   if (!viewer) {
     return (
       <form action={signInWithGitHub}>
-        <Button type="submit" variant="outline">
-          Sign in with GitHub
+        <Button type="submit">
+          <span className="sm:hidden">Sign in</span>
+          <span className="hidden sm:inline">Sign in with GitHub</span>
         </Button>
       </form>
     );
@@ -25,7 +26,7 @@ export function AuthControl({ viewer }: { viewer: Viewer | null }) {
           {viewer.displayName.slice(0, 1).toUpperCase()}
         </span>
       )}
-      <span className="max-w-40 truncate text-sm" title={viewer.displayName}>
+      <span className="max-w-24 truncate text-sm sm:max-w-40" title={viewer.displayName}>
         {viewer.displayName}
       </span>
       <form action={signOut}>
