@@ -6,35 +6,41 @@
 /*
  * Theme tokens: the single place where the Lazarus palette is defined.
  *   --background  #09090b  page background
- *   --curse       #e11d48  crimson: curses and destructive actions only
+ *   --primary/--ember #f2832b  ember orange: primary actions and focus ring
+ *   --spectral    #a78bfa  violet: the Seance stage
+ *   --curse       #e11d48  blood: fills for curses and destructive actions only
+ *   --curse-text  #fb7185  readable rose for curse text and icons on dark surfaces
  *   --verified    #10b981  emerald: verified properties and success only
  * The contrast test (src/lib/ui/contrast.test.ts) reads this file and checks the text pairs.
  */
 :root {
   color-scheme: dark;
   --background: #09090b;
-  --foreground: #fafafa;
-  --card: #111114;
-  --card-foreground: #fafafa;
-  --popover: #111114;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
+  --foreground: #ece4d4;
+  --card: #13111a;
+  --card-foreground: #ece4d4;
+  --popover: #13111a;
+  --popover-foreground: #ece4d4;
+  --primary: #f2832b;
   --primary-foreground: #09090b;
-  --secondary: #1c1c20;
-  --secondary-foreground: #fafafa;
-  --muted: #18181b;
-  --muted-foreground: #a1a1aa;
-  --accent: #27272a;
-  --accent-foreground: #fafafa;
+  --secondary: #1d1a27;
+  --secondary-foreground: #ece4d4;
+  --muted: #18161f;
+  --muted-foreground: #a49d90;
+  --accent: #272336;
+  --accent-foreground: #ece4d4;
   --destructive: #e11d48;
   --curse: #e11d48;
   --curse-foreground: #ffffff;
+  --curse-text: #fb7185;
   --verified: #10b981;
   --verified-foreground: #09090b;
-  --border: #2e2e33;
-  --input: #2e2e33;
-  --ring: #a1a1aa;
-  --radius: 0.5rem;
+  --ember: #f2832b;
+  --spectral: #a78bfa;
+  --border: #2b2738;
+  --input: #2b2738;
+  --ring: #f2832b;
+  --radius: 0.375rem;
 }
 
 @theme inline {
@@ -55,19 +61,89 @@
   --color-destructive: var(--destructive);
   --color-curse: var(--curse);
   --color-curse-foreground: var(--curse-foreground);
+  --color-curse-text: var(--curse-text);
   --color-verified: var(--verified);
   --color-verified-foreground: var(--verified-foreground);
+  --color-ember: var(--ember);
+  --color-spectral: var(--spectral);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-4xl: calc(var(--radius) + 16px);
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-serif: var(--font-cinzel), Georgia, serif;
+  --font-frak: var(--font-unifraktur), "Old English Text MT", serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* Shared surfaces and effects. Screens compose these instead of repeating the same box-shadow and border values. */
+
+/** Dark card surface used for panels outside the Card primitive. */
+@utility panel {
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/** Soft ember halo for hover and focus on primary actions and interactive cards. */
+@utility glow-ember {
+  box-shadow: 0 0 0 1px var(--ember), 0 0 24px rgb(242 131 43 / 0.45);
+}
+
+/** Emerald halo for verified results. */
+@utility glow-verified {
+  box-shadow: 0 0 20px rgb(16 185 129 / 0.35);
+}
+
+/** Decorative fog band: place on an aria-hidden absolutely positioned element with a height. */
+@utility fog-a {
+  background-image: url("/images/texture-fog-a.webp");
+  background-repeat: repeat-x;
+  background-size: 1024px 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+@utility fog-b {
+  background-image: url("/images/texture-fog-b.webp");
+  background-repeat: repeat-x;
+  background-size: 1024px 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/** Parchment texture behind code or notes; the overlay keeps text contrast above 4.5:1. */
+@utility parchment {
+  background-image: linear-gradient(rgb(9 9 11 / 0.88), rgb(9 9 11 / 0.88)), url("/images/texture-parchment.webp");
+  background-size: cover;
+}
+
+/** Candle flame flicker. Only runs when the user has not asked for reduced motion; the static icon is the final state. */
+@keyframes flicker {
+  0%,
+  100% {
+    transform: scaleY(1) translateY(0);
+    opacity: 1;
+  }
+  30% {
+    transform: scaleY(0.86) translateY(1px) skewX(-4deg);
+    opacity: 0.85;
+  }
+  60% {
+    transform: scaleY(1.08) translateY(-1px) skewX(3deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .flame {
+    animation: flicker 1.4s ease-in-out infinite;
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
+  }
 }
 
 @layer base {
@@ -87,11 +163,11 @@
   h1,
   h2,
   h3 {
-    @apply font-serif tracking-tight;
+    @apply font-serif tracking-wide;
   }
 
   :focus-visible {
     outline: 2px solid var(--ring);
-    outline-offset: 2px;
+    outline-offset: 3px;
   }
 }
