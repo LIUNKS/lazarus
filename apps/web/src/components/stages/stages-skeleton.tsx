@@ -1,7 +1,7 @@
 /** Reserves the space of the stepper, which sits above the source. */
 export function StageOverviewSkeleton() {
   return (
-    <div aria-hidden="true" className="grid gap-3 sm:grid-cols-3">
+    <div aria-hidden="true" className="grid grid-cols-3 gap-2 sm:gap-3">
       {[0, 1, 2].map((index) => (
         <div key={index} className="h-16 animate-pulse rounded-lg border border-border bg-card" />
       ))}
