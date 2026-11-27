@@ -38,8 +38,8 @@ describe('R3 Hex Scanner panel', () => {
 
   it('R3.2 shows the type, the severity as text in the curse token, the line, the description, and the strategy', () => {
     expect(html).toContain('>Eval injection<');
-    expect(html).toMatch(/<span[^>]*bg-curse text-curse-foreground[^>]*>FATAL<\/span>/);
-    expect(html).toMatch(/<span[^>]*bg-curse text-curse-foreground[^>]*>BLOOD CURSE<\/span>/);
+    expect(html).toMatch(/<span[^>]*bg-curse text-curse-foreground[^>]*>(?:<svg.*?<\/svg>)?FATAL<\/span>/);
+    expect(html).toMatch(/<span[^>]*bg-curse text-curse-foreground[^>]*>(?:<svg.*?<\/svg>)?BLOOD CURSE<\/span>/);
     expect(html).toContain('Line 7');
     expect(html).toContain('eval runs text as code.');
     expect(html).toContain('Exorcism strategy: </span>Parse the data instead.');

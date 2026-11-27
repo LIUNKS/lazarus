@@ -54,33 +54,35 @@ export function SeancePanel({
           {owner ? null : <p>{SAMPLE_MIGRATION_HINT}</p>}
         </div>
       ) : (
-        <>
-          <p data-reveal className="text-sm">
+        <div data-reveal className="parchment space-y-6 [&_strong]:font-semibold [&_strong]:text-spectral rounded-md border border-spectral p-6 shadow-[0_0_40px_rgb(167_139_250/0.12)] sm:px-9 sm:py-8">
+          <p className="text-sm">
             <span className="font-medium">Approval: </span>
-            {approvalText(seance)}
+            <span className="font-semibold text-spectral">{approvalText(seance)}</span>
           </p>
-          <div data-reveal className="space-y-2">
-            <h3 id="seance-requirements-heading" className="text-lg font-semibold">
+          <div className="space-y-2">
+            <h3 id="seance-requirements-heading" className="font-serif text-xl font-semibold tracking-wide">
               Requirements
             </h3>
-            <div role="region" aria-labelledby="seance-requirements-heading" tabIndex={0} className="rounded-lg border border-border bg-card p-4">
+            <div role="region" aria-labelledby="seance-requirements-heading" tabIndex={0} className="leading-relaxed">
               <SpecMarkdown source={seance.requirementsMd} />
             </div>
           </div>
-          <div data-reveal className="space-y-2">
-            <h3 id="seance-design-heading" className="text-lg font-semibold">
+          <hr className="border-spectral/35" />
+          <div className="space-y-2">
+            <h3 id="seance-design-heading" className="font-serif text-xl font-semibold tracking-wide">
               Design
             </h3>
-            <div role="region" aria-labelledby="seance-design-heading" tabIndex={0} className="rounded-lg border border-border bg-card p-4">
+            <div role="region" aria-labelledby="seance-design-heading" tabIndex={0} className="leading-relaxed">
               <SpecMarkdown source={seance.designMd} />
             </div>
           </div>
-          <div data-reveal className="space-y-2">
-            <h3 className="text-lg font-semibold">Invariants</h3>
+          <hr className="border-spectral/35" />
+          <div className="space-y-2">
+            <h3 className="font-serif text-xl font-semibold tracking-wide">Invariants</h3>
             {seance.invariants === null ? (
               <p className="text-sm text-muted-foreground">The stored invariants could not be read.</p>
             ) : (
-              <div className="space-y-2 rounded-lg border border-border bg-card p-4 text-sm">
+              <div className="space-y-2 text-sm leading-relaxed">
                 <p>
                   <span className="font-medium">Entry function: </span>
                   <code className="rounded bg-muted px-1 font-mono text-[0.85em]">{seance.invariants.entryFunction}</code>
@@ -101,7 +103,7 @@ export function SeancePanel({
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

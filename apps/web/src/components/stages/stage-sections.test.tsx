@@ -32,7 +32,7 @@ vi.mock('@/lib/verification/execution', () => ({
   effectiveSampleExecution: () => ({ enabled: execution.sampleEnabled }),
 }));
 
-const { StageSectionsView, StageSections } = await import('./stage-sections');
+const { StageOverviewView, StageSectionsView, StageSections } = await import('./stage-sections');
 
 function render(
   access: StageAccess,
@@ -44,15 +44,24 @@ function render(
   } = {},
 ): string {
   const corpse = data.corpse ?? corpseDetail({ isSample: access !== 'owner', userId: access === 'owner' ? 'owner' : null });
+  // The page renders the stepper above the source and the sections below it; the helper joins them in that order.
   return renderToStaticMarkup(
-    <StageSectionsView
-      corpse={corpse}
-      access={access}
-      seance={data.seance ?? null}
-      reincarnation={data.reincarnation ?? null}
-      scannerView={buildScannerView(corpse.curses, countSourceLines(corpse.originalCode))}
-      liveVerificationEnabled={data.liveVerificationEnabled ?? true}
-    />,
+    <>
+      <StageOverviewView
+        corpse={corpse}
+        seance={data.seance ?? null}
+        reincarnation={data.reincarnation ?? null}
+        liveVerificationEnabled={data.liveVerificationEnabled ?? true}
+      />
+      <StageSectionsView
+        corpse={corpse}
+        access={access}
+        seance={data.seance ?? null}
+        reincarnation={data.reincarnation ?? null}
+        scannerView={buildScannerView(corpse.curses, countSourceLines(corpse.originalCode))}
+        liveVerificationEnabled={data.liveVerificationEnabled ?? true}
+      />
+    </>,
   );
 }
 
@@ -95,7 +104,7 @@ describe('R1 stage sections and overview', () => {
   it('R1.4 shows the Laboratory state from the stored verification state', () => {
     const verified = render('visitor', { seance: seanceSpec(), reincarnation: reincarnation() });
     expect(verified).toContain('Approved');
-    expect(verified).toMatch(/Laboratory<\/span><span class="block text-sm text-muted-foreground">Verified</);
+    expect(verified).toMatch(/Laboratory<\/span><span class="block text-xs sm:text-sm[^"]*">Verified</);
   });
 });
 

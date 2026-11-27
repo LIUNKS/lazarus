@@ -8,8 +8,8 @@ const SRC = path.resolve(import.meta.dirname, '..');
 
 describe('R8 Morgue title and cards', () => {
   it('R1.5 R8.2 renders a plain h1 with the final text and no aria-label in the server markup', () => {
-    expect(renderToStaticMarkup(<ScrambleHeading text="The Morgue" className="text-3xl font-semibold" />)).toBe(
-      '<h1 class="text-3xl font-semibold">The Morgue</h1>',
+    expect(renderToStaticMarkup(<ScrambleHeading text="The Morgue" className="font-serif text-5xl font-bold" />)).toBe(
+      '<h1 class="font-serif text-5xl font-bold">The Morgue</h1>',
     );
   });
 

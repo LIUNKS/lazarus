@@ -6,7 +6,7 @@ export function GitHubSignInButton({ next, label = 'Sign in with GitHub' }: { ne
   return (
     <form action={signInWithGitHub}>
       <input type="hidden" name="next" value={next} />
-      <Button type="submit">{label}</Button>
+      <Button type="submit" size="lg">{label}</Button>
     </form>
   );
 }

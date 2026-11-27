@@ -38,7 +38,7 @@ describe('R4 Heartbeat markup', () => {
   const html = renderToStaticMarkup(<Heartbeat className="mt-2" />);
 
   it('R4.2 is hidden decoration drawn with currentColor and a muted token', () => {
-    expect(html).toMatch(/^<svg aria-hidden="true" focusable="false" viewBox="0 0 120 24" class="[^"]*text-muted-foreground mt-2">/);
+    expect(html).toMatch(/^<svg aria-hidden="true" focusable="false" viewBox="0 0 70 28" class="[^"]*text-primary mt-2">/);
     expect(html).toContain('stroke="currentColor"');
   });
 

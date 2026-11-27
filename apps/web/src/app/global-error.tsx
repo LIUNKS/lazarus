@@ -4,11 +4,11 @@
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   return (
     <html lang="en" style={{ colorScheme: 'dark' }}>
-      <body style={{ background: '#09090b', color: '#fafafa', fontFamily: 'system-ui, sans-serif', padding: '4rem 1rem', textAlign: 'center' }}>
+      <body style={{ background: '#09090b', color: '#ece4d4', fontFamily: 'system-ui, sans-serif', padding: '4rem 1rem', textAlign: 'center' }}>
         <h1>Something went wrong</h1>
-        <p style={{ color: '#a1a1aa' }}>An unexpected error stopped the application.</p>
-        {error.digest ? <p style={{ color: '#a1a1aa', fontSize: '0.75rem' }}>Reference: {error.digest}</p> : null}
-        <a href="/" style={{ color: '#fafafa' }}>
+        <p style={{ color: '#a49d90' }}>An unexpected error stopped the application.</p>
+        {error.digest ? <p style={{ color: '#a49d90', fontSize: '0.75rem' }}>Reference: {error.digest}</p> : null}
+        <a href="/" style={{ color: '#f2832b' }}>
           Back to The Morgue
         </a>
       </body>
