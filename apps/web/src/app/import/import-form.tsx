@@ -15,7 +15,7 @@ import { languageLabel } from '@/lib/ui/status';
 function FieldError({ id, message }: { id: string; message: string | undefined }) {
   if (!message) return null;
   return (
-    <p id={id} role="alert" className="text-sm text-foreground">
+    <p id={id} role="alert" className="text-sm text-curse-text">
       <span aria-hidden="true">⚠ </span>
       {message}
     </p>
@@ -27,7 +27,7 @@ export function ImportForm() {
   const [language, setLanguage] = useState(state.values.language);
 
   return (
-    <form action={formAction} className="space-y-6" noValidate>
+    <form action={formAction} className="panel space-y-6 p-5 sm:p-7" noValidate>
       {state.message ? <Notice tone="curse">{state.message}</Notice> : null}
 
       <div className="space-y-2">
@@ -67,8 +67,8 @@ export function ImportForm() {
         <FieldError id="language-error" message={state.errors.language} />
       </div>
 
-      <fieldset className="space-y-4">
-        <legend className="text-sm font-medium">Source code (up to 100 KB)</legend>
+      <fieldset className="space-y-4 rounded-md border border-dashed border-border p-4">
+        <legend className="px-2 font-serif text-sm font-semibold tracking-wide">Source code (up to 100 KB)</legend>
         <div className="space-y-2">
           <Label htmlFor="file">Upload a .js or .txt file</Label>
           <Input id="file" name="file" type="file" accept=".js,.txt,text/plain,text/javascript,application/javascript" />
@@ -104,7 +104,7 @@ export function ImportForm() {
         <FieldError id="repoUrl-error" message={state.errors.repoUrl} />
       </div>
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" size="lg" disabled={pending}>
         {pending ? 'Importing…' : 'Import corpse'}
       </Button>
     </form>

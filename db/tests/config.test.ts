@@ -322,8 +322,11 @@ describe('R21 scope and language', () => {
     const spanish = /[\u00e1\u00e9\u00ed\u00f3\u00fa\u00f1\u00bf\u00a1]|\b(ejecutar|archivo|usuario)\b/i;
     for (const file of tracked) {
       if (!existsSync(join(WORKSPACE_ROOT, file))) continue;
+      const content = read(file);
+      // Binary files (images, fonts) are skipped: a NUL byte is the same heuristic git uses.
+      if (content.includes('\0')) continue;
       // "Seance" is a product name (the Seance Chamber stage), so the accented spelling is allowed.
-      expect(read(file).replaceAll(/S\u00e9ance/gi, 'Seance'), file).not.toMatch(spanish);
+      expect(content.replaceAll(/S\u00e9ance/gi, 'Seance'), file).not.toMatch(spanish);
     }
   });
 });

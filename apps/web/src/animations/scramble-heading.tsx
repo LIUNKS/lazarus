@@ -4,7 +4,8 @@ import { useRef } from 'react';
 import { gsap, useGSAP } from './gsap';
 import { MOTION_QUERY } from './motion-math';
 
-const GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#%&*+';
+// Runes and alchemical signs, not letters: the decoding reads as a curse lifting.
+const GLYPHS = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒᛖᛗᛚᛜᛞᛟ☉☽♁♄♃♂';
 
 /**
  * A page title that decodes once from scrambled characters on first load (09-motion-ux Requirement 8). The server renders

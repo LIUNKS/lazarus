@@ -14,8 +14,40 @@ import type { ScannerView } from '@/lib/stages/scanner-view';
 import { verificationState } from '@/lib/stages/verification';
 import { effectiveExecution, effectiveSampleExecution } from '@/lib/verification/execution';
 
+function factsOf(
+  corpse: CorpseDetail,
+  seance: SeanceSpec | null,
+  reincarnation: Reincarnation | null,
+  liveVerificationEnabled: boolean,
+): StageFacts {
+  return {
+    curseCount: corpse.curseCount,
+    hasSeance: seance !== null,
+    seanceApproved: seance !== null && seance.approvedAt !== null,
+    hasReincarnation: reincarnation !== null,
+    verificationState: reincarnation === null ? null : verificationState(reincarnation),
+    isSample: corpse.isSample,
+    liveVerificationEnabled,
+  };
+}
+
+/** The tombstone stepper for data that is already loaded. The page renders it above the source. */
+export function StageOverviewView({
+  corpse,
+  seance,
+  reincarnation,
+  liveVerificationEnabled,
+}: {
+  corpse: CorpseDetail;
+  seance: SeanceSpec | null;
+  reincarnation: Reincarnation | null;
+  liveVerificationEnabled: boolean;
+}) {
+  return <StageOverview summaries={summarizeStages(factsOf(corpse, seance, reincarnation, liveVerificationEnabled))} />;
+}
+
 /**
- * The overview and the three sections for data that is already loaded. It is synchronous, so tests render it to static
+ * The three sections for data that is already loaded. It is synchronous, so tests render it to static
  * markup. For a Visitor and for a Member looking at a sample, no `StageActions` element is in the tree at all.
  */
 export function StageSectionsView({
@@ -34,21 +66,12 @@ export function StageSectionsView({
   /** The server-side execution decision for this corpse. While it is false, the "Verify live" control is not offered. */
   liveVerificationEnabled: boolean;
 }) {
-  const facts: StageFacts = {
-    curseCount: corpse.curseCount,
-    hasSeance: seance !== null,
-    seanceApproved: seance !== null && seance.approvedAt !== null,
-    hasReincarnation: reincarnation !== null,
-    verificationState: reincarnation === null ? null : verificationState(reincarnation),
-    isSample: corpse.isSample,
-    liveVerificationEnabled,
-  };
+  const facts = factsOf(corpse, seance, reincarnation, liveVerificationEnabled);
   const controls = stageControls(access, facts);
   const currentPath = `/corpses/${corpse.id}`;
 
   return (
     <div className="space-y-8">
-      <StageOverview summaries={summarizeStages(facts)} />
       <ReadonlyNotice access={access} currentPath={currentPath} />
       <Reveal className="space-y-10" trigger="scroll">
         <StageSection id="hex-scanner" title="Hex Scanner">
@@ -68,6 +91,32 @@ export function StageSectionsView({
         </StageSection>
       </Reveal>
     </div>
+  );
+}
+
+function liveEnabled(corpse: CorpseDetail): boolean {
+  // A sample is reviewed code and needs only the kill switch to be off. Imported code also needs the reviewed flag.
+  return (corpse.isSample ? effectiveSampleExecution() : effectiveExecution()).enabled;
+}
+
+/**
+ * The stepper above the source. `loadStages` is wrapped in React `cache()`, so this and `StageSections` share one request's
+ * read. If the load fails, nothing renders here and `StageSections` shows the error state.
+ */
+export async function StageOverviewLoader({ corpse }: { corpse: CorpseDetail }) {
+  let stages: Awaited<ReturnType<typeof loadStages>>;
+  try {
+    stages = await loadStages(corpse.id);
+  } catch {
+    return null;
+  }
+  return (
+    <StageOverviewView
+      corpse={corpse}
+      seance={stages.seance}
+      reincarnation={stages.reincarnation}
+      liveVerificationEnabled={liveEnabled(corpse)}
+    />
   );
 }
 
@@ -93,8 +142,7 @@ export async function StageSections({
     console.error(`[stages] Loading the stage data failed: ${error instanceof Error ? error.name : 'unknown error'}`);
     return <ErrorState what="the stage results" />;
   }
-  // A sample is reviewed code and needs only the kill switch to be off. Imported code also needs the reviewed flag.
-  const liveVerificationEnabled = (corpse.isSample ? effectiveSampleExecution() : effectiveExecution()).enabled;
+  const liveVerificationEnabled = liveEnabled(corpse);
   return (
     <StageSectionsView
       corpse={corpse}

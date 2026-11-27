@@ -40,7 +40,7 @@ export function ScrollProgress() {
     <div
       ref={ref}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-foreground/70 opacity-0"
+      className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-primary opacity-0 shadow-[0_0_8px] shadow-primary"
     />
   );
 }

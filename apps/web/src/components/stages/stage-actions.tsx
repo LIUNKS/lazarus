@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useReducer, useRef, useState } from 'react';
+import { EyeAwake } from '@/animations/eye-awake';
 import { Heartbeat } from '@/animations/heartbeat';
 import { Notice } from '@/components/notice';
 import { Button } from '@/components/ui/button';
@@ -90,7 +91,7 @@ export function StageActions({ route, corpseId, available, label, note, pendingT
         <Notice>
           <p>{pendingText}</p>
           {/* Indeterminate on purpose: the routes return one JSON document, so there is no progress value to show. */}
-          <Heartbeat className="mt-2" />
+          {route === 'scan' ? <EyeAwake className="mt-2" /> : <Heartbeat className="mt-2" />}
         </Notice>
       ) : null}
       {state.phase === 'done' ? <Notice>{state.message}</Notice> : null}

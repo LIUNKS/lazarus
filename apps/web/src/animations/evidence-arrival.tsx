@@ -1,10 +1,14 @@
 'use client';
 
 import { useRef, type ReactNode } from 'react';
+import { HEARTBEAT_PULSE_LARGE_D, SKULL_OUTLINE_D } from '@/components/icons';
 import { formatRunCount } from '@/lib/stages/format';
 import type { StatusTone } from '@/lib/ui/status';
 import { gsap, ScrollTrigger, useGSAP, withMotion } from './gsap';
 import { countFrame } from './motion-math';
+
+/** The large heartbeat as a flat line (same 120x44 box as the pulse). */
+const HEARTBEAT_FLAT_LARGE_D = 'M0 24h120';
 
 /**
  * The Evidence_Arrival (09-motion-ux Requirement 5). When the stored verification evidence scrolls into view, the run
@@ -42,6 +46,16 @@ export function EvidenceArrival({ children, runCount, tone }: { children: ReactN
               },
               onComplete: restore,
             });
+          }
+          const pulse = root.querySelector('[data-evidence-pulse] path');
+          if (pulse) {
+            // The server HTML is the finished pulse line; here it rises from a flat line once.
+            gsap.fromTo(pulse, { morphSVG: HEARTBEAT_FLAT_LARGE_D }, { morphSVG: HEARTBEAT_PULSE_LARGE_D, duration: 1, ease: 'power2.out', clearProps: 'd' });
+          }
+          const hand = root.querySelector('[data-evidence-hand] path');
+          if (hand) {
+            // The server HTML is the raised hand; it rises from the skull once.
+            gsap.from(hand, { morphSVG: SKULL_OUTLINE_D, duration: 0.9, ease: 'power2.inOut', clearProps: 'd' });
           }
           const glow = root.querySelector('[data-evidence-glow]');
           if (glow) {

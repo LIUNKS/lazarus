@@ -78,7 +78,7 @@ export function SpecMarkdown({ source }: { source: string }) {
     if (block.kind === 'heading') {
       const Heading = HEADINGS[block.level];
       rendered.push(
-        <Heading key={rendered.length} className="font-semibold">
+        <Heading key={rendered.length} className="font-serif font-semibold tracking-wide">
           {block.text}
         </Heading>,
       );

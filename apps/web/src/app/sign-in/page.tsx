@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { signInWithGitHub } from '@/app/sign-in/actions';
+import { CobwebCorner } from '@/components/icons';
 import { CapabilityList } from '@/components/onboarding/capability-list';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,9 +19,10 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="mx-auto max-w-md">
-      <Card>
+      <Card className="relative">
+        <CobwebCorner className="pointer-events-none absolute top-0 right-0 size-16 text-muted-foreground/40" />
         <CardHeader>
-          <CardTitle className="text-2xl">Sign in</CardTitle>
+          <CardTitle className="font-serif text-3xl tracking-wide">Sign in</CardTitle>
           <CardDescription>
             Sign in with GitHub to import your own legacy code and keep a private history in The Crypt. You can explore
             the samples without signing in.
@@ -31,7 +33,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
           <div className="space-y-2">
             <form action={signInWithGitHub}>
               <input type="hidden" name="next" value={next} />
-              <Button type="submit" className="w-full">
+              <Button type="submit" size="lg" className="w-full">
                 Continue with GitHub
               </Button>
             </form>
