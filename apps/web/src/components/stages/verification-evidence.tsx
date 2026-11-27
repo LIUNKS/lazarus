@@ -1,4 +1,4 @@
-import { HeartbeatLarge } from '@/components/icons';
+import { HeartbeatLarge, RaisedHandIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
 import { VERIFICATION_LABELS, type VerificationView } from '@/lib/stages/verification';
 
@@ -22,6 +22,7 @@ export function VerificationEvidence({ view }: { view: VerificationView }) {
       className={cn('flex flex-col gap-4 rounded-md border p-5 sm:flex-row sm:items-center sm:gap-6 sm:px-6', TONE_CLASSES[view.tone])}
     >
       {verified ? <HeartbeatLarge data-evidence-pulse className="h-11 w-[120px] shrink-0 text-verified" /> : null}
+      {verified ? <RaisedHandIcon data-evidence-handclassName="size-9 shrink-0 text-verified" /> : null}
       <div className="min-w-0 space-y-1.5">
         <p className="text-xs font-semibold tracking-[0.15em] text-muted-foreground uppercase">{VERIFICATION_LABELS[view.state]}</p>
         <h3 className="font-serif text-xl leading-snug font-semibold">{view.headline}</h3>
