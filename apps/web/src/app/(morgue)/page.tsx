@@ -43,7 +43,7 @@ export default async function MorguePage({ searchParams }: { searchParams: Searc
   const data = await load(viewer?.member.id ?? null);
   const common = { alt: '', priority: true, quality: 80 } as const;
   const { props: desktop } = getImageProps({ ...common, src: '/images/hero-graveyard-desktop.webp', width: 1920, height: 1088, sizes: '(min-width: 1152px) 1152px, 100vw' });
-  const { props: mobile } = getImageProps({ ...common, src: '/images/hero-graveyard-mobile.webp', width: 832, height: 1472, sizes: '100vw' });
+  const { props: { srcSet: mobileSrcSet, ...mobile } } = getImageProps({ ...common, src: '/images/hero-graveyard-mobile.webp', width: 832, height: 1472, sizes: '100vw' });
 
   return (
     <div className="space-y-14">
@@ -53,10 +53,13 @@ export default async function MorguePage({ searchParams }: { searchParams: Searc
       >
         <picture>
           <source media="(min-width: 768px)" srcSet={desktop.srcSet} sizes={desktop.sizes} />
+          <source media="(max-width: 767px)" srcSet={mobileSrcSet} sizes={mobile.sizes} />
           <img
             {...mobile}
             alt=""
-            className="absolute inset-0 -z-30 size-full object-cover object-bottom md:object-[right_center]"
+            loading="eager"
+            fetchPriority="high"
+            className="absolute inset-0 -z-30 size-full object-cover object-top md:object-[right_center]"
           />
         </picture>
         {/* Overlay: dark behind the copy (>= 4.5:1 for bone text), clear where the graveyard shows. */}
