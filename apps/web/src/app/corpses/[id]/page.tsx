@@ -10,8 +10,8 @@ import { FenceDivider } from '@/components/icons';
 import { LanguageBadge } from '@/components/language-badge';
 import { Notice } from '@/components/notice';
 import { SampleInvite } from '@/components/onboarding/sample-invite';
-import { StageSections } from '@/components/stages/stage-sections';
-import { StagesSkeleton } from '@/components/stages/stages-skeleton';
+import { StageOverviewLoader, StageSections } from '@/components/stages/stage-sections';
+import { StageOverviewSkeleton, StagesSkeleton } from '@/components/stages/stages-skeleton';
 import { StatusBadge } from '@/components/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { getViewer } from '@/lib/auth/viewer';
@@ -86,6 +86,10 @@ export default async function CorpsePage({ params, searchParams }: PageProps) {
         </p>
         {isOwner ? <DeleteCorpseButton corpseId={corpse.id} title={corpse.title} /> : null}
       </header>
+
+      <Suspense fallback={<StageOverviewSkeleton />}>
+        <StageOverviewLoader corpse={corpse} />
+      </Suspense>
 
       <section className="space-y-3" aria-labelledby="source-heading">
         <h2 id="source-heading" className="font-serif text-2xl font-semibold tracking-wider">
